@@ -67,7 +67,7 @@ the constants at the top:
 ```python
 ALGORITHMS = ["dqn", "ppo", "a2c"]
 REWARD_CONFIGS = ["none", "distance", "angle", "combined"]
-SEEDS = [0, 1, 2]          # proposal asks for 3-5 seeds
+SEEDS = [0, 1, 2]         
 TIMESTEPS = 1_000_000
 ```
 
