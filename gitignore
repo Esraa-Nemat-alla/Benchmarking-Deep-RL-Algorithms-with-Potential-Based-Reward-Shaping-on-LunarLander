@@ -1,0 +1,17 @@
+# Training outputs (models, logs, evaluations) - these get large fast
+results/
+results_test/
+*.zip
+
+# Generated plots and summaries (regenerate with evaluate.py)
+*_learning_curves.png
+results_summary.csv
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# OS junk
+.DS_Store
