@@ -7,8 +7,6 @@ Aggregate results across seeds and produce:
 
 Run this after train.py / run_all_experiments.py have produced files under
 results/<algo>_<reward>_seed<seed>/evaluations.npz
-
-
 """
 
 import itertools
@@ -20,8 +18,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from src.config import ALGORITHMS, REWARD_CONFIGS
-
+ALGORITHMS = ["ppo"]
+REWARD_CONFIGS = ["none", "distance", "angle", "combined"]
 SEEDS = [0, 1, 2]
 RESULTS_DIR = "results"
 
@@ -85,7 +83,8 @@ def build_summary_table():
         })
 
     df = pd.DataFrame(rows)
-    df.to_csv("results_summary.csv", index=False)
+    if not df.empty:
+        df.to_csv("results_summary.csv", index=False)
     return df
 
 
@@ -124,7 +123,7 @@ def plot_learning_curves():
             continue
 
         plt.axhline(SUCCESS_THRESHOLD, color="gray", linestyle="--", linewidth=1, label="success threshold (200)")
-        plt.title(f"{algo.upper()} on LunarLander - learning curves")
+        plt.title(f"{algo.upper()} on LunarLanderContinuous - learning curves")
         plt.xlabel("Training timesteps")
         plt.ylabel("Mean evaluation reward")
         plt.legend()
@@ -137,8 +136,11 @@ def plot_learning_curves():
 
 def main():
     df = build_summary_table()
-    print(df.to_string(index=False))
-    print("\nSaved results_summary.csv")
+    if not df.empty:
+        print(df.to_string(index=False))
+        print("\nSaved results_summary.csv")
+    else:
+        print("No results found. Have you run the training yet?")
     plot_learning_curves()
 
 

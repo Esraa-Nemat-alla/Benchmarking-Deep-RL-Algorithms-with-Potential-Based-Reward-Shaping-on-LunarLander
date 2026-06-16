@@ -1,30 +1,35 @@
 """
-Run the full experiment grid: algorithms x reward configurations x seeds.
+Script to automatically loop through and run all experiments.
 """
-
 import itertools
 import subprocess
 import sys
 
-from src.config import ALGORITHMS, REWARD_CONFIGS, DEFAULT_TIMESTEPS, DEFAULT_EVAL_FREQ
-
+# Define our search space
+ALGORITHMS = ["ppo"]
+REWARD_CONFIGS = ["none", "distance", "angle", "combined"]
 SEEDS = [0, 1, 2]
+TIMESTEPS = 1_000_000
+EVAL_FREQ = 10_000
 
 def main():
     combos = list(itertools.product(ALGORITHMS, REWARD_CONFIGS, SEEDS))
-    print(f"Running {len(combos)} experiments "
-          f"({len(ALGORITHMS)} algos x {len(REWARD_CONFIGS)} reward configs x {len(SEEDS)} seeds)")
+    print(f"Running {len(combos)} experiments...")
 
     for i, (algo, reward, seed) in enumerate(combos, 1):
         print(f"\n[{i}/{len(combos)}] algo={algo} reward={reward} seed={seed}")
+        
+        # Build the command to call train.py
         cmd = [
-            sys.executable, "-m", "src.train",
+            sys.executable, "train.py",
             "--algo", algo,
             "--reward", reward,
             "--seed", str(seed),
-            "--timesteps", str(DEFAULT_TIMESTEPS),
-            "--eval-freq", str(DEFAULT_EVAL_FREQ),
+            "--timesteps", str(TIMESTEPS),
+            "--eval-freq", str(EVAL_FREQ),
         ]
+        
+        # Execute the command
         subprocess.run(cmd, check=True)
 
 if __name__ == "__main__":
