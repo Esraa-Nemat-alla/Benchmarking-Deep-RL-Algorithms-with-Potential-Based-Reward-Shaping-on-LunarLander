@@ -4,3 +4,5 @@ torch
 matplotlib
 pandas
 numpy
+streamlit
+pillow
