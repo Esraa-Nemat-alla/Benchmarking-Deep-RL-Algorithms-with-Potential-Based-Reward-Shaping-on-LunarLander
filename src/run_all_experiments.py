@@ -1,22 +1,14 @@
 """
-Run the full experiment grid: 3 algorithms x 4 reward configurations x N seeds.
-
-This just calls train.py once per combination as a separate process, so a
-crash in one run doesn't take down the others . (e.g. TIMESTEPS = 100_000,
-SEEDS = [0, 1]) then we will scale up in upcoming updates
-
+Run the full experiment grid: algorithms x reward configurations x seeds.
 """
 
 import itertools
 import subprocess
 import sys
 
-ALGORITHMS = ["dqn", "ppo", "a2c"]
-REWARD_CONFIGS = ["none", "distance", "angle", "combined"]
-SEEDS = [0, 1, 2]
-TIMESTEPS = 1_000_000
-EVAL_FREQ = 10_000
+from src.config import ALGORITHMS, REWARD_CONFIGS, DEFAULT_TIMESTEPS, DEFAULT_EVAL_FREQ
 
+SEEDS = [0, 1, 2]
 
 def main():
     combos = list(itertools.product(ALGORITHMS, REWARD_CONFIGS, SEEDS))
@@ -26,15 +18,14 @@ def main():
     for i, (algo, reward, seed) in enumerate(combos, 1):
         print(f"\n[{i}/{len(combos)}] algo={algo} reward={reward} seed={seed}")
         cmd = [
-            sys.executable, "train.py",
+            sys.executable, "-m", "src.train",
             "--algo", algo,
             "--reward", reward,
             "--seed", str(seed),
-            "--timesteps", str(TIMESTEPS),
-            "--eval-freq", str(EVAL_FREQ),
+            "--timesteps", str(DEFAULT_TIMESTEPS),
+            "--eval-freq", str(DEFAULT_EVAL_FREQ),
         ]
         subprocess.run(cmd, check=True)
-
 
 if __name__ == "__main__":
     main()

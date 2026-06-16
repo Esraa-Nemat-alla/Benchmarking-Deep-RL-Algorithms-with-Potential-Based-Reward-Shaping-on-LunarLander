@@ -20,8 +20,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-ALGORITHMS = ["dqn", "ppo", "a2c"]
-REWARD_CONFIGS = ["none", "distance", "angle", "combined"]
+from src.config import ALGORITHMS, REWARD_CONFIGS
+
 SEEDS = [0, 1, 2]
 RESULTS_DIR = "results"
 
