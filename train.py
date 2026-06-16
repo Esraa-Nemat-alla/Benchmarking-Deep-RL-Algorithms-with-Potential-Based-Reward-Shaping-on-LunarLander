@@ -7,62 +7,62 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import EvalCallback
 from stable_baselines3.common.monitor import Monitor
 
-# Import our custom environment creator from the local file
+from config import GAMMA, REWARD_CONFIGS, RESULTS_DIR
 from reward_shaping import make_lunarlander_env
 
-# --- Configuration ---
-# Currently we are only using PPO to keep things simple. 
-# You can add SAC, TD3, etc., here later.
 ALGORITHMS_CLS = {
     "ppo": PPO,
 }
-GAMMA = 0.99
 
-def build_env(reward_config, seed, log_path):
-    """Creates the environment and wraps it in a Monitor for logging."""
-    env = make_lunarlander_env(reward_config, gamma=GAMMA)
+
+def build_env(reward_config, seed, log_path, for_eval=False):
+    """Create env; eval always uses unshaped reward for fair metrics."""
+    config = "none" if for_eval else reward_config
+    env = make_lunarlander_env(config, gamma=GAMMA)
     env = Monitor(env, filename=log_path)
     env.reset(seed=seed)
     return env
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--algo", choices=list(ALGORITHMS_CLS.keys()), default="ppo", help="Algorithm to train")
-    parser.add_argument("--reward", choices=["none", "distance", "angle", "combined"], required=True, help="Reward shaping config")
-    parser.add_argument("--seed", type=int, default=0, help="Random seed")
-    parser.add_argument("--timesteps", type=int, default=1_000_000, help="Total training steps")
-    parser.add_argument("--eval-freq", type=int, default=10_000, help="Evaluation frequency")
-    args = parser.parse_args()
 
-    # Create a unique folder for this run's results
-    run_name = f"{args.algo}_{args.reward}_seed{args.seed}"
-    run_dir = os.path.join("results", run_name)
+def train(algo, reward, seed, timesteps, eval_freq):
+    """Run one training job. Returns the output directory path."""
+    run_name = f"{algo}_{reward}_seed{seed}"
+    run_dir = os.path.join(RESULTS_DIR, run_name)
     os.makedirs(run_dir, exist_ok=True)
 
-    # Build training and evaluation environments
-    train_env = build_env(args.reward, args.seed, os.path.join(run_dir, "monitor"))
-    eval_env = build_env(args.reward, args.seed + 10_000, os.path.join(run_dir, "eval_monitor"))
+    train_env = build_env(reward, seed, os.path.join(run_dir, "monitor"))
+    eval_env = build_env(reward, seed + 10_000, os.path.join(run_dir, "eval_monitor"), for_eval=True)
 
-    # Initialize the model (e.g., PPO)
-    model_cls = ALGORITHMS_CLS[args.algo]
-    model = model_cls("MlpPolicy", train_env, gamma=GAMMA, seed=args.seed, verbose=1)
+    model_cls = ALGORITHMS_CLS[algo]
+    model = model_cls("MlpPolicy", train_env, gamma=GAMMA, seed=seed, verbose=1)
 
-    # Callback to periodically evaluate the model and save the best one
     eval_callback = EvalCallback(
         eval_env,
         best_model_save_path=run_dir,
         log_path=run_dir,
-        eval_freq=args.eval_freq,
+        eval_freq=eval_freq,
         n_eval_episodes=10,
         deterministic=True,
     )
 
     print(f"--- Starting training for {run_name} ---")
-    model.learn(total_timesteps=args.timesteps, callback=eval_callback)
-    
-    # Save the final model at the very end
+    model.learn(total_timesteps=timesteps, callback=eval_callback)
     model.save(os.path.join(run_dir, "final_model"))
     print(f"Finished {run_name}. Results saved to {run_dir}/")
+    return run_dir
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--algo", choices=list(ALGORITHMS_CLS.keys()), default="ppo")
+    parser.add_argument("--reward", choices=REWARD_CONFIGS, required=True)
+    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--timesteps", type=int, default=1_000_000)
+    parser.add_argument("--eval-freq", type=int, default=10_000)
+    args = parser.parse_args()
+
+    train(args.algo, args.reward, args.seed, args.timesteps, args.eval_freq)
+
 
 if __name__ == "__main__":
     main()
