@@ -1,8 +1,8 @@
 # Benchmarking Deep RL Algorithms with Potential-Based Reward Shaping
 
-Code for the proposal **"Benchmarking Deep Reinforcement Learning Algorithms with Potential-Based Reward Shaping on LunarLander"**.
+Code for the project **"Benchmarking Deep Reinforcement Learning Algorithms with Potential-Based Reward Shaping on LunarLander"**.
 
-In response to reviewer feedback to increase the scope for a 4-person project, this codebase has been upgraded to target the more challenging continuous control environment, `LunarLanderContinuous-v3`. Currently, it isolates **PPO** as the primary algorithm, applying Potential-Based Reward Shaping (PBRS) under 4 reward configurations: `none`, `distance`, `angle`, and `combined`. It evaluates sample efficiency, success rates, and final performance.
+We benchmark **5 deep RL algorithms** (PPO, A2C, SAC, TD3, DDPG) on the challenging continuous control environment `LunarLanderContinuous-v3`, applying **Potential-Based Reward Shaping (PBRS)** under 4 reward configurations: `none`, `distance`, `angle`, and `combined`. We also include a hyperparameter sensitivity study to assess robustness.
 
 ---
 
@@ -29,7 +29,40 @@ python -c "import gymnasium as gym; gym.make('LunarLanderContinuous-v3')"
 
 ---
 
-## 2. Web GUI (recommended)
+## 2. Experiment Design
+
+### Algorithms (5 total)
+
+| Algorithm | Type | Key Idea |
+|---|---|---|
+| **PPO** | On-policy | Clipped surrogate objective for stable updates |
+| **A2C** | On-policy | Synchronous advantage actor-critic |
+| **SAC** | Off-policy | Maximum entropy RL for exploration |
+| **TD3** | Off-policy | Twin critics + delayed policy updates |
+| **DDPG** | Off-policy | Deterministic policy gradient with replay buffer |
+
+### Reward Shaping Configs (4 total)
+
+| Config | Potential Function | Description |
+|---|---|---|
+| `none` | — | Vanilla environment reward (baseline) |
+| `distance` | φ(s) = −d/d_max | Penalizes distance from the landing pad |
+| `angle` | φ(s) = −|θ|/π | Penalizes non-upright orientation |
+| `combined` | 0.7·φ_dist + 0.3·φ_angle | Weighted combination of both |
+
+### Default Experiment Grid
+
+- **5 algorithms × 4 reward configs × 3 seeds = 60 runs**
+- Each run trains for 1,000,000 timesteps
+
+### Hyperparameter Sensitivity Study
+
+- Tests 2 learning rates (3e-4, 1e-4) × 2 network sizes ([64,64], [256,256])
+- Run on PPO + `combined` shaping × 3 seeds = 12 additional runs
+
+---
+
+## 3. Web GUI (Recommended)
 
 Launch the dashboard in your browser:
 
@@ -37,97 +70,108 @@ Launch the dashboard in your browser:
 streamlit run app.py
 ```
 
-The GUI has four tabs:
+The GUI has five tabs:
 
 | Tab | Purpose |
 |---|---|
-| **Dashboard** | Progress bar, results table, learning curves |
-| **Train** | Run one experiment with custom settings |
-| **Full Grid** | Launch all 12 benchmark runs |
-| **Watch Agent** | Replay a trained lander as a GIF |
+| **📊 Dashboard** | Progress bar, results table, learning curves, comparative bar chart |
+| **🏋️ Train** | Run one experiment with custom settings & optional hyperparameter overrides |
+| **🔲 Full Grid** | Launch all 60 benchmark runs |
+| **🔬 Hyperparameter Study** | Run and visualize the hyperparameter sensitivity analysis |
+| **👀 Watch Agent** | Replay a trained lander as a GIF |
 
 ---
 
-## 3. Codebase Architecture: What Each File Does
-
-To make sure everyone on the team understands the codebase, here is a breakdown of the main Python scripts:
+## 4. Codebase Architecture: What Each File Does
 
 ### `config.py` (Shared Settings)
-* **What it does:** Single place for seeds, timesteps, reward configs, and paths. Used by train, evaluate, and the GUI.
-* **What to do here:** Change `SEEDS`, `DEFAULT_TIMESTEPS`, or add new reward names when scaling the benchmark.
-
-### `app.py` (Web GUI)
-* **What it does:** Streamlit dashboard to train, evaluate, and watch agents without typing CLI commands.
-* **What to do here:** Extend tabs or styling for your demo/presentation.
-
-### `demo.py` (Agent Replay)
-* **What it does:** Loads a saved model and records an episode as RGB frames (used by the Watch Agent tab).
+* **What it does:** Single place for algorithms, seeds, timesteps, reward configs, hyperparameter grid, and paths. Used by every other script.
+* **What to do here:** Add/remove algorithms, change `SEEDS`, `DEFAULT_TIMESTEPS`, or modify the `HYPERPARAM_GRID`.
 
 ### `reward_shaping.py` (The Environment & Math Hub)
-* **What it does:** Contains the continuous environment setup and the custom logic for our reward shaping. It defines `phi_distance`, `phi_angle`, and `phi_combined` (Eqs. 4-6). It also contains the `PBRSRewardWrapper`, which applies the mathematical shaping formula: $F = \gamma \Phi(s') - \Phi(s)$.
-* **What to do here:** If you want to invent a new shaping heuristic (e.g., punishing high speeds), you write your new `phi_velocity` function here and add it to the `POTENTIAL_FUNCTIONS` dictionary.
+* **What it does:** Contains the continuous environment setup and the PBRS logic. Defines `phi_distance`, `phi_angle`, and `phi_combined`. The `PBRSRewardWrapper` applies the shaping formula: F = γ·Φ(s') − Φ(s).
+* **What to do here:** Add new potential functions (e.g., `phi_velocity`) and register them in the `POTENTIAL_FUNCTIONS` dictionary.
 
 ### `train.py` (The Single-Agent Worker)
-* **What it does:** Trains on the shaped environment but **evaluates on the native (unshaped) reward** so success @ 200 is meaningful. Saves models and logs under `results/`.
-* **What to do here:** Currently hardcoded to `PPO` to keep things simple. If you want to integrate `SAC`, `TD3`, or `DDPG` later, you import them at the top from `stable_baselines3` and add them to the `ALGORITHMS_CLS` dictionary.
+* **What it does:** Trains one RL agent on the shaped environment, evaluates on the native (unshaped) reward, and saves models + logs to `results/`. Supports all 5 algorithms and optional `--lr` / `--net-arch` overrides.
+* **What to do here:** Add new algorithms by importing them and adding to `ALGORITHMS_CLS`.
 
 ### `run_all_experiments.py` (The Automation Manager)
-* **What it does:** Loops through all combinations (Algorithms $\times$ Rewards $\times$ Seeds) and runs `train.py` automatically.
-* **What to do here:** Edit `config.py` to change timesteps or seed count.
+* **What it does:** Phase 1 runs the full algorithm × reward × seed grid. Phase 2 runs the hyperparameter sensitivity study. Both phases call `train.py` as subprocesses.
+* **What to do here:** Edit `config.py` to change the grid dimensions.
 
 ### `evaluate.py` (The Analytics Script)
-* **What it does:** Once training runs are finished, it reads the `evaluations.npz` files inside the `results/` folder. It aggregates the math to calculate Success Rates, Area Under Curve (AUC), and Sample Efficiency. It generates a CSV table and learning curve graphs.
-* **What to do here:** Edit this if you want to change the colors/titles of your matplotlib charts, or if you need to calculate a brand new metric for your final report.
+* **What it does:** Reads `evaluations.npz` files, computes metrics (success rate, AUC, sample efficiency), and generates: summary CSV, per-algorithm learning curves, comparative bar chart, and hyperparameter sensitivity plot.
+* **What to do here:** Edit colors, titles, or add new metrics.
+
+### `demo.py` (Agent Replay)
+* **What it does:** Loads a saved model (auto-detects the algorithm from the folder name) and records an episode as RGB frames. Used by the Watch Agent tab.
+
+### `app.py` (Web GUI)
+* **What it does:** Streamlit dashboard with 5 tabs for training, evaluating, and visualizing results.
 
 ---
 
-## 4. Running a Single Experiment
+## 5. Running Experiments
 
-To run a quick pilot test:
+### Quick Pilot (one algorithm, one config, ~2 minutes)
+
 ```bash
 python train.py --algo ppo --reward distance --seed 0 --timesteps 50000
 ```
-This creates `results/ppo_distance_seed0/` containing:
-* `monitor.monitor.csv` - training episode returns/lengths
-* `evaluations.npz` - evaluation reward over training (used by `evaluate.py`)
-* `best_model.zip` - best checkpoint seen during training
-* `final_model.zip` - model at the end of training
 
-**Start small first:** Use `--timesteps 50000` to confirm everything runs in a few minutes before scaling up to 1,000,000 for your final paper.
+### Test All Algorithms Quickly
 
----
+```bash
+python train.py --algo ppo  --reward none --seed 0 --timesteps 50000
+python train.py --algo a2c  --reward none --seed 0 --timesteps 50000
+python train.py --algo sac  --reward none --seed 0 --timesteps 50000
+python train.py --algo td3  --reward none --seed 0 --timesteps 50000
+python train.py --algo ddpg --reward none --seed 0 --timesteps 50000
+```
 
-## 5. Running the Full Grid
+### Full Grid (60 runs at 1M steps each)
 
-Once you are confident in your pilot runs, you can execute the full benchmark matrix:
 ```bash
 python run_all_experiments.py
 ```
-*Note: This will execute multiple 1,000,000 timestep runs sequentially. On a laptop, PPO takes roughly 15-30 minutes per million steps. Budget your compute time accordingly before the project deadline!*
+
+*Note: Budget your compute time! On a laptop, each 1M-step run takes roughly 15–30 minutes. The full grid of 60 runs can take 15–30 hours.*
+
+### Custom Hyperparameters
+
+```bash
+python train.py --algo sac --reward combined --seed 0 --timesteps 500000 --lr 1e-4 --net-arch 256 256
+```
 
 ---
 
 ## 6. Evaluating Results
 
-Once some runs have finished, generate your plots and tables:
+Once some runs have finished:
+
 ```bash
 python evaluate.py
 ```
-This produces:
-* `results_summary.csv` - Data table containing mean/std of final evaluation rewards, success rates (returns $\ge$ 200), and AUC.
-* `<algo>_learning_curves.png` - Mean $\pm$ std evaluation reward curves over training for each reward configuration.
 
-`evaluate.py` will gracefully ignore missing data, meaning you can run it *during* your full grid execution to check on your progress without crashing!
+This produces:
+* `results_summary.csv` — Data table with mean/std of final rewards, success rates, AUC
+* `<algo>_learning_curves.png` — Per-algorithm learning curves (mean ± std across seeds)
+* `comparative_bar_chart.png` — All algorithms compared side by side
+* `hyperparam_sensitivity.png` — How learning rate and network size affect performance
+
+`evaluate.py` gracefully ignores missing data, so you can run it mid-experiment to check progress.
 
 ---
 
-## 7. Design Choices & Proposal Mapping
+## 7. Design Choices
 
-- **Environment:** Upgraded from the discrete `LunarLander-v3` to `LunarLanderContinuous-v3` to satisfy the reviewer's request for a more challenging scope.
-- **Algorithms:** Currently restricted to **PPO** from Stable-Baselines3, providing a flawless baseline before integrating SAC/TD3/DDPG.
-- **Potentials:** 
-  - `phi_distance`: Fixed, stationary scale normalized by the environment's observation-space bounds.
-  - `phi_angle`: Punishes non-upright angles.
-  - `phi_combined`: Uses the $0.7/0.3$ weighting scheme from Eq. 6.
-- **Shaping Math:** $\gamma = 0.99$ is synchronized perfectly between the wrapper and the agent's discount factor to preserve mathematical guarantees.
-- **Evaluation:** Metrics are always computed on the **native** LunarLander reward (no shaping), even when training with PBRS.
+- **Environment:** `LunarLanderContinuous-v3` — more challenging than discrete LunarLander, requires continuous control algorithms
+- **Algorithms:** 5 algorithms from Stable-Baselines3 (2 on-policy + 3 off-policy) for a comprehensive comparison
+- **Potentials:**
+  - `phi_distance`: Normalized by the observation space bounds, rewards proximity to the pad
+  - `phi_angle`: Punishes non-upright angles, normalized by π
+  - `phi_combined`: 0.7/0.3 weighted scheme
+- **Shaping Math:** γ = 0.99 synchronized between the PBRS wrapper and all agents' discount factors
+- **Evaluation:** Metrics always computed on the native LunarLander reward (no shaping), even during training with PBRS
+- **Hyperparameter Study:** Tests whether PBRS benefits are robust across different learning rates and network architectures
