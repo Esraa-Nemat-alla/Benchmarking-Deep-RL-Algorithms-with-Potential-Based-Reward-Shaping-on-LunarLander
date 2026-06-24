@@ -20,7 +20,40 @@ Updated scope:
 
 This keeps the project focused on potential-based reward shaping while expanding the comparison across on-policy and off-policy methods.
 
-## 2. Setup
+## 2. Key Results
+
+Current completed experiment set:
+
+- **Main benchmark:** 60/60 runs complete.
+- **Hyperparameter study:** 12/12 runs complete.
+- **Total completed planned runs:** 72/72.
+- **Algorithms:** PPO, A2C, SAC, TD3, DDPG.
+- **Reward configurations:** `none`, `distance`, `angle`, `combined`.
+- **Seeds:** 0, 1, 2 for every main benchmark configuration.
+
+Best observed configurations from the current results:
+
+| Finding | Result |
+|---|---|
+| Best mean final reward | PPO with `combined` shaping: 110.9 |
+| Highest success rate | PPO with `none`: 50% |
+| Best SAC configuration | SAC with `combined`: 31.2 final reward, 23% success |
+| Best TD3 configuration | TD3 with `combined`: -36.7 final reward, 3% success |
+| Largest final-reward shaping gain | A2C with `combined`: +140.1 over A2C baseline |
+
+Main takeaway: combined potential-based reward shaping improved mean final reward for several algorithms, especially PPO, A2C, TD3, and SAC. However, PPO without shaping still had the highest landing success rate under the current training budget, so shaping helped reward performance more consistently than solved-landing reliability.
+
+Generated results are organized under:
+
+```text
+reports/
+  figures/
+  tables/
+  demos/
+  RESULTS_INTERPRETATION.md
+```
+
+## 3. Setup
 
 ### Option A: Conda/Mamba Environment
 
@@ -76,7 +109,7 @@ Quick sanity check:
 python -c "import gymnasium as gym; gym.make('LunarLanderContinuous-v3')"
 ```
 
-## 3. Experiment Design
+## 4. Experiment Design
 
 ### Algorithms
 
@@ -114,7 +147,7 @@ The hyperparameter study tests whether the effect of reward shaping is robust un
 - Algorithm/reward pair: PPO with `combined` shaping
 - Seeds: `0`, `1`, `2`
 
-## 4. Web GUI
+## 5. Web GUI
 
 Launch the Streamlit dashboard:
 
@@ -132,7 +165,7 @@ The GUI has five tabs:
 | Hyperparameter Study | Run and visualize the 12-run sensitivity analysis |
 | Watch Agent | Replay a trained lander as a GIF |
 
-## 5. Codebase Architecture
+## 6. Codebase Architecture
 
 Project organization:
 
@@ -181,7 +214,7 @@ Loads a saved model, auto-detects the algorithm from the run folder name, and re
 
 Streamlit dashboard for training, evaluation, visualization, and replay.
 
-## 6. Running Experiments
+## 7. Running Experiments
 
 Quick pilot:
 
@@ -228,7 +261,7 @@ Custom hyperparameters:
 python train.py --algo sac --reward combined --seed 0 --timesteps 500000 --lr 1e-4 --net-arch 256 256
 ```
 
-## 7. Evaluating Results
+## 8. Evaluating Results
 
 After some runs finish:
 
@@ -255,7 +288,7 @@ To generate a replay GIF from a trained run:
 python demo.py --run td3_combined_seed0 --output reports/demos/td3_combined.gif
 ```
 
-## 8. Main Design Choices
+## 9. Main Design Choices
 
 - `LunarLanderContinuous-v3` increases task difficulty by requiring continuous control.
 - Five algorithms provide a broader comparison across on-policy and off-policy RL.
