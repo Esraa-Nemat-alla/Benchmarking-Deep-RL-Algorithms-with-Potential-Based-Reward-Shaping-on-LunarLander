@@ -1,8 +1,0 @@
-gymnasium[box2d]
-stable-baselines3
-torch
-matplotlib
-pandas
-numpy
-streamlit
-pillow

@@ -78,37 +78,6 @@ pip install swig
 pip install "gymnasium[box2d]"
 ```
 
-### Option B: Python venv
-
-Create a virtual environment and install dependencies:
-
-```bash
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-```
-
-On Windows PowerShell:
-
-```powershell
-python -m venv venv
-.\venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-```
-
-Install Box2D support for LunarLander:
-
-```bash
-pip install swig
-pip install "gymnasium[box2d]"
-```
-
-Quick sanity check:
-
-```bash
-python -c "import gymnasium as gym; gym.make('LunarLanderContinuous-v3')"
-```
-
 ## 4. Experiment Design
 
 ### Algorithms
