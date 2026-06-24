@@ -68,9 +68,7 @@ tab_dashboard, tab_train, tab_grid, tab_hyperparam, tab_watch = st.tabs(
 )
 
 
-# ---------------------------------------------------------------------
-# TAB 1: Dashboard
-# ---------------------------------------------------------------------
+# Dashboard
 with tab_dashboard:
     done, total = count_completed_runs()
     st.progress(done / total if total else 0.0, text=f"Completed runs: {done}/{total}")
@@ -119,9 +117,7 @@ with tab_dashboard:
             st.pyplot(fig, clear_figure=True)
 
 
-# ---------------------------------------------------------------------
-# TAB 2: Train a single experiment
-# ---------------------------------------------------------------------
+# Train a single experiment
 with tab_train:
     st.subheader("Single Experiment")
 
@@ -184,9 +180,7 @@ with tab_train:
             st.error("Training failed. Check the log above.")
 
 
-# ---------------------------------------------------------------------
-# TAB 3: Full Grid
-# ---------------------------------------------------------------------
+# Full Grid
 with tab_grid:
     st.subheader("Full Benchmark Grid")
     grid_total = len(ALGORITHMS) * len(REWARD_CONFIGS) * len(SEEDS)
@@ -211,9 +205,7 @@ with tab_grid:
             st.error("Grid run stopped with errors.")
 
 
-# ---------------------------------------------------------------------
-# TAB 4: Hyperparameter Study
-# ---------------------------------------------------------------------
+# Hyperparameter Study
 with tab_hyperparam:
     st.subheader("Hyperparameter Sensitivity Study")
     st.write(
@@ -279,9 +271,7 @@ with tab_hyperparam:
         st.info("No hyperparameter study results yet. Run the study above first.")
 
 
-# ---------------------------------------------------------------------
-# TAB 5: Watch Agent
-# ---------------------------------------------------------------------
+# Watch Agent
 with tab_watch:
     st.subheader("Watch a Trained Agent")
     runs = list_runs()

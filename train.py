@@ -23,7 +23,7 @@ from stable_baselines3.common.monitor import Monitor
 from config import GAMMA, REWARD_CONFIGS, RESULTS_DIR
 from reward_shaping import make_lunarlander_env
 
-# ── Map CLI names to SB3 classes ─────────────────────────────────────
+# Map CLI names to SB3 classes 
 ALGORITHMS_CLS = {
     "ppo":  PPO,
     "a2c":  A2C,
@@ -93,7 +93,7 @@ def train(algo, reward, seed, timesteps, eval_freq, lr=None, net_arch=None):
     eval_env = build_env(reward, seed + 10_000,
                          os.path.join(run_dir, "eval_monitor"), for_eval=True)
 
-    # ── Build model kwargs ───────────────────────────────────────────
+    # Build model kwargs 
     model_cls = ALGORITHMS_CLS[algo]
     model_kwargs = {
         "policy": "MlpPolicy",
@@ -113,7 +113,7 @@ def train(algo, reward, seed, timesteps, eval_freq, lr=None, net_arch=None):
 
     model = model_cls(**model_kwargs)
 
-    # ── Evaluation callback (tracks progress during training) ────────
+    # Evaluation callback (tracks progress during training) 
     eval_callback = EvalCallback(
         eval_env,
         best_model_save_path=run_dir,

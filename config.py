@@ -5,27 +5,27 @@ This is the single source of truth for all experiment parameters.
 Change values here and every script will pick them up automatically.
 """
 
-# ── Core RL setting ──────────────────────────────────────────────────
+# Core RL setting 
 GAMMA = 0.99  # Discount factor (must match the PBRS wrapper)
 
-# ── Algorithms to benchmark ─────────────────────────────────────────
+# Algorithms to benchmark 
 # PPO & A2C  = on-policy  (good for comparison)
 # SAC, TD3, DDPG = off-policy (designed for continuous control)
 ALGORITHMS = ["ppo", "a2c", "sac", "td3", "ddpg"]
 
-# ── Reward shaping configurations ───────────────────────────────────
+# Reward shaping configurations 
 # "none" = vanilla environment reward (baseline)
 # "distance" / "angle" / "combined" = PBRS with different potential functions
 REWARD_CONFIGS = ["none", "distance", "angle", "combined"]
 
-# ── Experiment grid ─────────────────────────────────────────────────
+# Experiment grid 
 SEEDS = [0, 1, 2]                  # 3 seeds for statistical significance
 DEFAULT_TIMESTEPS = 1_000_000      # Total training steps per run
 DEFAULT_EVAL_FREQ = 10_000         # Evaluate the agent every N steps
 SUCCESS_THRESHOLD = 200.0          # LunarLander "solved" threshold
 RESULTS_DIR = "results"
 
-# ── Hyperparameter sensitivity study ────────────────────────────────
+# Hyperparameter sensitivity study 
 # We pick one algorithm and test how different learning rates and
 # network architectures affect the impact of reward shaping.
 HYPERPARAM_ALGO = "ppo"            # Which algorithm to run the sweep on

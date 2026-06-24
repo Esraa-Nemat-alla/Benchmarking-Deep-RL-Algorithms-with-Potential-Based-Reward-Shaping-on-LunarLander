@@ -93,7 +93,7 @@ def run_hyperparam_study():
 def main():
     run_default_grid()
     run_hyperparam_study()
-    print("\n✅ All experiments completed!")
+    print("\n All experiments completed!")
 
 
 if __name__ == "__main__":

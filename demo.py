@@ -15,7 +15,7 @@ from reward_shaping import ENV_NAME
 
 DEMOS_DIR = os.path.join("reports", "demos")
 
-# ── Map algo names to SB3 classes (same as train.py) ─────────────────
+# Map algo names to SB3 classes (same as train.py) 
 _ALGO_CLS = {
     "ppo":  PPO,
     "a2c":  A2C,
