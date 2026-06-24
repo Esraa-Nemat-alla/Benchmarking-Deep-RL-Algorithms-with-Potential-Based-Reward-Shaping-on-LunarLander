@@ -29,6 +29,10 @@ from config import (
 )
 
 # ── Nice color palette for up to 5 algorithms ───────────────────────
+REPORTS_DIR = "reports"
+FIGURES_DIR = os.path.join(REPORTS_DIR, "figures")
+TABLES_DIR = os.path.join(REPORTS_DIR, "tables")
+
 ALGO_COLORS = {
     "ppo":  "#2196F3",  # Blue
     "a2c":  "#4CAF50",  # Green
@@ -86,6 +90,24 @@ def area_under_curve(timesteps, mean_rewards):
     return float(trapezoid(mean_rewards, timesteps))
 
 
+def nanmean_or_nan(values):
+    """Mean that stays quiet when every value is NaN."""
+    arr = np.asarray(values, dtype=float)
+    finite = arr[~np.isnan(arr)]
+    if len(finite) == 0:
+        return np.nan
+    return float(np.mean(finite))
+
+
+def nanstd_or_nan(values):
+    """Standard deviation that stays quiet when every value is NaN."""
+    arr = np.asarray(values, dtype=float)
+    finite = arr[~np.isnan(arr)]
+    if len(finite) == 0:
+        return np.nan
+    return float(np.std(finite))
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # SUMMARY TABLE
 # ═══════════════════════════════════════════════════════════════════════
@@ -122,15 +144,16 @@ def build_summary_table(save_csv=True):
             "final_reward_mean": np.mean(finals),
             "final_reward_std": np.std(finals),
             "success_rate_mean": np.mean(successes),
-            "timesteps_to_200_mean": np.nanmean(ttt),
-            "timesteps_to_200_std": np.nanstd(ttt),
+            "timesteps_to_200_mean": nanmean_or_nan(ttt),
+            "timesteps_to_200_std": nanstd_or_nan(ttt),
             "auc_mean": np.mean(aucs),
             "auc_std": np.std(aucs),
         })
 
     df = pd.DataFrame(rows)
     if save_csv and not df.empty:
-        df.to_csv("results_summary.csv", index=False)
+        os.makedirs(TABLES_DIR, exist_ok=True)
+        df.to_csv(os.path.join(TABLES_DIR, "results_summary.csv"), index=False)
     return df
 
 
@@ -208,7 +231,8 @@ def plot_learning_curves():
         fig = make_learning_curve_figure(algo)
         if fig is None:
             continue
-        out_path = f"{algo}_learning_curves.png"
+        os.makedirs(FIGURES_DIR, exist_ok=True)
+        out_path = os.path.join(FIGURES_DIR, f"{algo}_learning_curves.png")
         fig.savefig(out_path, dpi=150)
         plt.close(fig)
         saved.append(out_path)
@@ -275,7 +299,8 @@ def plot_comparative_bar_chart():
     fig = make_comparative_bar_chart()
     if fig is None:
         return None
-    out_path = "comparative_bar_chart.png"
+    os.makedirs(FIGURES_DIR, exist_ok=True)
+    out_path = os.path.join(FIGURES_DIR, "comparative_bar_chart.png")
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
     print(f"Saved {out_path}")
@@ -351,7 +376,8 @@ def make_hyperparam_sensitivity_figure():
         ax.set_xlabel("Training timesteps")
         if i == 0:
             ax.set_ylabel("Mean evaluation reward (unshaped)")
-        ax.legend()
+        if ax.get_legend_handles_labels()[0]:
+            ax.legend()
 
     if not any_data:
         plt.close(fig)
@@ -370,7 +396,8 @@ def plot_hyperparam_sensitivity():
     fig = make_hyperparam_sensitivity_figure()
     if fig is None:
         return None
-    out_path = "hyperparam_sensitivity.png"
+    os.makedirs(FIGURES_DIR, exist_ok=True)
+    out_path = os.path.join(FIGURES_DIR, "hyperparam_sensitivity.png")
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
     print(f"Saved {out_path}")
@@ -401,7 +428,7 @@ def main():
     df = build_summary_table()
     if not df.empty:
         print(df.to_string(index=False))
-        print("\nSaved results_summary.csv")
+        print(f"\nSaved {os.path.join(TABLES_DIR, 'results_summary.csv')}")
     else:
         print("No results found. Have you run the training yet?")
 
@@ -414,7 +441,7 @@ def main():
     print("\nGenerating hyperparameter sensitivity plot...")
     plot_hyperparam_sensitivity()
 
-    print("\nDone! Check the generated PNG files and results_summary.csv.")
+    print("\nDone! Check reports/figures and reports/tables.")
 
 
 if __name__ == "__main__":
