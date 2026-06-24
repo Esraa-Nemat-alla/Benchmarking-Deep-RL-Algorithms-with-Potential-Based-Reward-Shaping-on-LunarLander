@@ -12,6 +12,8 @@ import argparse
 import os
 import subprocess
 import sys
+import concurrent.futures
+import numpy as np
 
 from config import (
     ALGORITHMS,
@@ -58,7 +60,19 @@ def _run_name(algo, reward, seed, lr=None, net_arch=None):
 
 
 def _is_complete(run_name):
-    return os.path.exists(os.path.join(RESULTS_DIR, run_name, "evaluations.npz"))
+    file_path = os.path.join(RESULTS_DIR, run_name, "evaluations.npz")
+    if not os.path.exists(file_path):
+        return False
+    
+    try:
+        # We don't just check for the file, we try to open it and read the data
+        data = np.load(file_path)
+        _ = data["timesteps"] # We make sure the timesteps array is actually there
+        return True
+    except Exception:
+        # If the file is broken, we come here and consider the run completed
+        print(f"[Warning] The evaluations.npz file is broken for the run {run_name}. The run will be retrained.")
+        return False
 
 
 def _train(job, timesteps, eval_freq, force=False):
@@ -114,6 +128,8 @@ def _hyperparam_jobs():
 
 
 def main():
+    max_workers = os.cpu_count()
+
     parser = argparse.ArgumentParser(
         description="Run prioritized experiments and skip completed runs."
     )
@@ -145,8 +161,16 @@ def main():
     jobs = _hyperparam_jobs() if args.phase == "hyperparam" else PHASES[args.phase]
     print(f"Phase: {args.phase} | Jobs: {len(jobs)} | Timesteps: {args.timesteps}")
 
-    for job in jobs:
-        _train(job, args.timesteps, args.eval_freq, force=args.force)
+    with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
+        # We prepare all jobs and throw them to the library to distribute them to the processor
+        futures = [executor.submit(_train, job, args.timesteps, args.eval_freq, args.force) for job in jobs]
+        
+        # Here we check the results and print if there was an unexpected error
+        for future in concurrent.futures.as_completed(futures):
+            try:
+                future.result()
+            except Exception as e:
+                print(f"An unexpected error occurred during training: {e}")
 
     print("Done. Run `python evaluate.py` and `python analyze_results.py` next.")
 

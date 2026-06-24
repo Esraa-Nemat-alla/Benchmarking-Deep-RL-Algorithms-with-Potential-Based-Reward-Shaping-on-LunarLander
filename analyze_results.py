@@ -52,6 +52,9 @@ def build_shaping_effects(df):
             rows.append({
                 "algorithm": algo,
                 "reward_config": row["reward_config"],
+                "baseline_max_timesteps": base.get("max_timesteps", "N/A"), # We check if the comparison is fair
+                "shaped_max_timesteps": row.get("max_timesteps", "N/A"), # We check if the comparison is fair
+                "is_fair_comparison": base.get("max_timesteps") == row.get("max_timesteps"), # We check if the comparison is fair
                 "baseline_final_reward": base["final_reward_mean"],
                 "shaped_final_reward": row["final_reward_mean"],
                 "delta_final_reward": (

@@ -28,7 +28,7 @@ from config import (
     SUCCESS_THRESHOLD,
 )
 
-# ── Nice color palette for up to 5 algorithms ───────────────────────
+# Nice color palette for up to 5 algorithms 
 REPORTS_DIR = "reports"
 FIGURES_DIR = os.path.join(REPORTS_DIR, "figures")
 TABLES_DIR = os.path.join(REPORTS_DIR, "tables")
@@ -49,9 +49,7 @@ REWARD_COLORS = {
 }
 
 
-# ═══════════════════════════════════════════════════════════════════════
 # DATA LOADING
-# ═══════════════════════════════════════════════════════════════════════
 
 def load_run(algo, reward, seed, lr=None, net_arch=None):
     """
@@ -108,9 +106,7 @@ def nanstd_or_nan(values):
     return float(np.std(finite))
 
 
-# ═══════════════════════════════════════════════════════════════════════
 # SUMMARY TABLE
-# ═══════════════════════════════════════════════════════════════════════
 
 def build_summary_table(save_csv=True):
     """
@@ -122,6 +118,7 @@ def build_summary_table(save_csv=True):
     rows = []
     for algo, reward in itertools.product(ALGORITHMS, REWARD_CONFIGS):
         ttt, aucs, successes, finals = [], [], [], []
+        
 
         for seed in SEEDS:
             try:
@@ -141,6 +138,7 @@ def build_summary_table(save_csv=True):
             "algorithm": algo,
             "reward_config": reward,
             "n_seeds": len(finals),
+            "n_seeds_completed": sum(1 for seed in SEEDS if _is_complete(f"{algo}_{reward}_seed{seed}")),
             "final_reward_mean": np.mean(finals),
             "final_reward_std": np.std(finals),
             "success_rate_mean": np.mean(successes),
@@ -157,9 +155,7 @@ def build_summary_table(save_csv=True):
     return df
 
 
-# ═══════════════════════════════════════════════════════════════════════
 # LEARNING CURVES (per algorithm)
-# ═══════════════════════════════════════════════════════════════════════
 
 def _collect_curves(algo, reward):
     """Gather learning curves from all seeds for one (algo, reward) pair."""
@@ -240,9 +236,7 @@ def plot_learning_curves():
     return saved
 
 
-# ═══════════════════════════════════════════════════════════════════════
 # COMPARATIVE BAR CHART (all algorithms × all reward configs)
-# ═══════════════════════════════════════════════════════════════════════
 
 def make_comparative_bar_chart():
     """
@@ -307,9 +301,7 @@ def plot_comparative_bar_chart():
     return out_path
 
 
-# ═══════════════════════════════════════════════════════════════════════
 # HYPERPARAMETER SENSITIVITY ANALYSIS
-# ═══════════════════════════════════════════════════════════════════════
 
 def make_hyperparam_sensitivity_figure():
     """
@@ -404,9 +396,7 @@ def plot_hyperparam_sensitivity():
     return out_path
 
 
-# ═══════════════════════════════════════════════════════════════════════
 # UTILITY
-# ═══════════════════════════════════════════════════════════════════════
 
 def count_completed_runs():
     """Count how many runs have finished out of the full grid."""
@@ -419,9 +409,7 @@ def count_completed_runs():
     return done, total
 
 
-# ═══════════════════════════════════════════════════════════════════════
 # MAIN
-# ═══════════════════════════════════════════════════════════════════════
 
 def main():
     print("Building summary table...")
