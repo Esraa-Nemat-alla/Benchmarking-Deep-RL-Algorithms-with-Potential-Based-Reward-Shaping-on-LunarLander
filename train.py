@@ -15,6 +15,7 @@ Usage examples:
 """
 import os
 import argparse
+import numpy as np
 
 from stable_baselines3 import PPO, A2C, SAC, TD3, DDPG
 from stable_baselines3.common.callbacks import EvalCallback

@@ -19,7 +19,7 @@ ALGORITHMS = ["ppo", "a2c", "sac", "td3", "ddpg"]
 # Reward shaping configurations 
 # "none" = vanilla environment reward (baseline)
 # "distance" / "angle" / "combined" = PBRS with different potential functions
-REWARD_CONFIGS = ["none", "distance", "angle", "combined"]
+REWARD_CONFIGS = ["none", "distance", "angle", "combined", "velocity"]
 
 # Experiment grid 
 SEEDS = [0, 1, 2]                  # 3 seeds for statistical significance
