@@ -24,24 +24,24 @@ This keeps the project focused on potential-based reward shaping while expanding
 
 Current completed experiment set:
 
-- **Main benchmark:** 60/60 runs complete.
-- **Hyperparameter study:** 12/12 runs complete.
-- **Total completed planned runs:** 72/72.
-- **Algorithms:** PPO, A2C, SAC, TD3, DDPG.
+- **Main benchmark:** 23/60 runs complete (PPO 12/12, A2C 11/12; SAC, TD3, DDPG pending).
+- **Hyperparameter study:** 1/12 runs complete.
+- **Total completed runs:** 24/72.
+- **Algorithms with full coverage:** PPO.
 - **Reward configurations:** `none`, `distance`, `angle`, `combined`.
-- **Seeds:** 0, 1, 2 for every main benchmark configuration.
+- **Seeds:** 0, 1, 2 for every completed PPO configuration.
 
-Best observed configurations from the current results:
+> **Note:** Run `python run_priority_experiments.py --phase coverage` to complete the remaining main grid experiments.
+
+Best observed configurations from the currently available results (PPO and A2C):
 
 | Finding | Result |
 |---|---|
-| Best mean final reward | PPO with `combined` shaping: 110.9 |
-| Highest success rate | PPO with `none`: 50% |
-| Best SAC configuration | SAC with `combined`: 31.2 final reward, 23% success |
-| Best TD3 configuration | TD3 with `combined`: -36.7 final reward, 3% success |
-| Largest final-reward shaping gain | A2C with `combined`: +140.1 over A2C baseline |
+| Best mean final reward | PPO with `combined` shaping |
+| Highest success rate | PPO with `none` |
+| Largest final-reward shaping gain | A2C with `combined` over baseline |
 
-Main takeaway: combined potential-based reward shaping improved mean final reward for several algorithms, especially PPO, A2C, TD3, and SAC. However, PPO without shaping still had the highest landing success rate under the current training budget, so shaping helped reward performance more consistently than solved-landing reliability.
+Main takeaway: combined potential-based reward shaping improved mean final reward for PPO and A2C. SAC, TD3, and DDPG experiments are still pending and need to be run before cross-algorithm conclusions can be drawn.
 
 Generated results are organized under:
 

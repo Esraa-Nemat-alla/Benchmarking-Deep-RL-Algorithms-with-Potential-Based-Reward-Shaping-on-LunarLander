@@ -13,15 +13,18 @@ import os
 import subprocess
 import sys
 import concurrent.futures
-import numpy as np
 
 from config import (
     ALGORITHMS,
     DEFAULT_EVAL_FREQ,
+    HYPERPARAM_ALGO,
     HYPERPARAM_GRID,
+    HYPERPARAM_REWARD,
     RESULTS_DIR,
     REWARD_CONFIGS,
     SEEDS,
+    build_run_name,
+    is_run_complete,
 )
 
 
@@ -50,33 +53,9 @@ PHASES = {
 }
 
 
-def _run_name(algo, reward, seed, lr=None, net_arch=None):
-    name = f"{algo}_{reward}_seed{seed}"
-    if lr is not None:
-        name += f"_lr{lr}"
-    if net_arch is not None:
-        name += "_net" + "-".join(str(n) for n in net_arch)
-    return name
-
-
-def _is_complete(run_name):
-    file_path = os.path.join(RESULTS_DIR, run_name, "evaluations.npz")
-    if not os.path.exists(file_path):
-        return False
-    
-    try:
-        # We don't just check for the file, we try to open it and read the data
-        data = np.load(file_path)
-        _ = data["timesteps"] # We make sure the timesteps array is actually there
-        return True
-    except Exception:
-        # If the file is broken, we come here and consider the run completed
-        print(f"[Warning] The evaluations.npz file is broken for the run {run_name}. The run will be retrained.")
-        return False
-
 
 def _train(job, timesteps, eval_freq, force=False):
-    run_name = _run_name(
+    run_name = build_run_name(
         job["algo"],
         job["reward"],
         job["seed"],
@@ -84,7 +63,7 @@ def _train(job, timesteps, eval_freq, force=False):
         net_arch=job.get("net_arch"),
     )
 
-    if _is_complete(run_name) and not force:
+    if is_run_complete(run_name) and not force:
         print(f"[skip] {run_name} already has evaluations.npz")
         return
 
@@ -116,10 +95,10 @@ def _hyperparam_jobs():
     jobs = []
     for lr in HYPERPARAM_GRID["learning_rate"]:
         for net_arch in HYPERPARAM_GRID["net_arch"]:
-            for seed in [0, 1, 2]:
+            for seed in SEEDS:
                 jobs.append({
-                    "algo": "ppo",
-                    "reward": "combined",
+                    "algo": HYPERPARAM_ALGO,
+                    "reward": HYPERPARAM_REWARD,
                     "seed": seed,
                     "lr": lr,
                     "net_arch": net_arch,
@@ -128,7 +107,7 @@ def _hyperparam_jobs():
 
 
 def main():
-    max_workers = os.cpu_count()
+    default_workers = min(os.cpu_count() or 1, 4)
 
     parser = argparse.ArgumentParser(
         description="Run prioritized experiments and skip completed runs."
@@ -156,12 +135,18 @@ def main():
         action="store_true",
         help="Re-run jobs even if evaluations.npz already exists.",
     )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=default_workers,
+        help=f"Max parallel workers (default: {default_workers}).",
+    )
     args = parser.parse_args()
 
     jobs = _hyperparam_jobs() if args.phase == "hyperparam" else PHASES[args.phase]
     print(f"Phase: {args.phase} | Jobs: {len(jobs)} | Timesteps: {args.timesteps}")
 
-    with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
+    with concurrent.futures.ProcessPoolExecutor(max_workers=args.workers) as executor:
         # We prepare all jobs and throw them to the library to distribute them to the processor
         futures = [executor.submit(_train, job, args.timesteps, args.eval_freq, args.force) for job in jobs]
         

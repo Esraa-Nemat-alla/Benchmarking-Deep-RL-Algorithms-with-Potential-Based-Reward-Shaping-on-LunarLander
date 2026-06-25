@@ -49,25 +49,26 @@ The `combined` potential uses:
 
 ## 5. Experiment Grid
 
-Main benchmark:
+Main benchmark (completed so far):
 
 ```text
-5 algorithms x 4 reward configurations x 3 seeds = 60 runs
+23 of 60 runs complete (PPO: 12/12, A2C: 11/12)
+SAC, TD3, DDPG: pending
 ```
 
 Hyperparameter sensitivity study:
 
 ```text
-2 learning rates x 2 network sizes x 3 seeds = 12 runs
+1 of 12 runs complete
 ```
 
-Total completed planned experiments:
+Total completed runs:
 
 ```text
-72 runs
+24 of 72 planned
 ```
 
-The main benchmark used seeds `0`, `1`, and `2` for every algorithm and reward configuration.
+The main benchmark used seeds `0`, `1`, and `2` for every completed algorithm and reward configuration.
 
 ## 6. Metrics
 
@@ -81,30 +82,29 @@ The analysis reports:
 
 ## 7. Key Results
 
-Best current configurations:
+Best current configurations (PPO and A2C only — other algorithms pending):
 
 | Algorithm | Best reward config | Mean final reward | Success rate | Seeds |
 |---|---|---:|---:|---:|
 | PPO | `combined` | 110.9 | 43% | 3 |
-| SAC | `combined` | 31.2 | 23% | 3 |
-| TD3 | `combined` | -36.7 | 3% | 3 |
-| DDPG | `distance` | -127.8 | 0% | 3 |
-| A2C | `combined` | -214.1 | 0% | 3 |
+| A2C | `combined` | -214.1 | 0% | 2 |
 
-Overall findings:
+> **Note:** SAC, TD3, and DDPG results will be added once those experiments are run.
+
+Overall findings from available data:
 
 - Best mean final reward: **PPO with `combined` shaping**.
 - Highest success rate: **PPO with `none`**, at 50%.
-- Largest final-reward shaping gain: **A2C with `combined`**, improving by 140.1 over the A2C baseline.
-- `combined` shaping was the best reward configuration for PPO, SAC, TD3, and A2C.
+- Largest final-reward shaping gain: **A2C with `combined`**, improving over the A2C baseline.
+- `combined` shaping was the best reward configuration for both PPO and A2C.
 
 ## 8. Discussion
 
-The results suggest that PBRS can improve reward performance, especially when distance and angle shaping are combined. PPO with `combined` shaping achieved the highest mean final reward among all configurations.
+The results suggest that PBRS can improve reward performance, especially when distance and angle shaping are combined. PPO with `combined` shaping achieved the highest mean final reward among all completed configurations.
 
 However, the highest landing success rate came from PPO without shaping. This means shaping improved reward performance but did not universally improve solved-landing reliability under the current training budget.
 
-The off-policy algorithms showed mixed results. SAC and TD3 benefited most from `combined` shaping among their configurations, while DDPG performed best with `distance` shaping. A2C remained weak overall, but all three shaping variants improved its final reward compared with the unshaped baseline.
+A2C remained weak overall, but shaping variants improved its final reward compared with the unshaped baseline. Full cross-algorithm conclusions require completing the SAC, TD3, and DDPG experiments.
 
 ## 9. Hyperparameter Sensitivity
 
@@ -123,6 +123,8 @@ reports/figures/hyperparam_sensitivity.png
 ## 10. Limitations
 
 - Most main benchmark runs are short-budget experiments, mainly around 50k timesteps.
+- Only PPO and A2C experiments are complete; SAC, TD3, and DDPG are pending.
+- The hyperparameter sensitivity study has only 1 of 12 runs complete.
 - Some older PPO baseline runs were trained longer, so direct comparisons should mention the training-budget difference.
 - GIF replay reward is from a single episode and can differ from the mean evaluation reward.
 - Longer training budgets would give a stronger estimate of final algorithm performance.

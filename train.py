@@ -20,8 +20,9 @@ from stable_baselines3 import PPO, A2C, SAC, TD3, DDPG
 from stable_baselines3.common.callbacks import EvalCallback
 from stable_baselines3.common.monitor import Monitor
 
-from config import GAMMA, REWARD_CONFIGS, RESULTS_DIR
+from config import GAMMA, RESULTS_DIR, REWARD_CONFIGS, build_run_name
 from reward_shaping import make_lunarlander_env
+from stable_baselines3.common.noise import NormalActionNoise
 
 # Map CLI names to SB3 classes 
 ALGORITHMS_CLS = {
@@ -48,19 +49,7 @@ def build_env(reward_config, seed, log_path, for_eval=False):
     return env
 
 
-def _build_run_name(algo, reward, seed, lr=None, net_arch=None):
-    """
-    Create a unique folder name for this experiment run.
-    If custom hyperparams are provided, we encode them in the name
-    so they don't overwrite the default runs.
-    """
-    name = f"{algo}_{reward}_seed{seed}"
-    if lr is not None:
-        name += f"_lr{lr}"
-    if net_arch is not None:
-        arch_str = "-".join(str(n) for n in net_arch)
-        name += f"_net{arch_str}"
-    return name
+# Run naming is handled by config.build_run_name()
 
 
 def train(algo, reward, seed, timesteps, eval_freq, lr=None, net_arch=None):
@@ -84,7 +73,7 @@ def train(algo, reward, seed, timesteps, eval_freq, lr=None, net_arch=None):
     net_arch : list[int] or None
         Custom network architecture, e.g. [256, 256]. Uses SB3 default if None.
     """
-    run_name = _build_run_name(algo, reward, seed, lr, net_arch)
+    run_name = build_run_name(algo, reward, seed, lr, net_arch)
     run_dir = os.path.join(RESULTS_DIR, run_name)
     os.makedirs(run_dir, exist_ok=True)
 
@@ -93,6 +82,7 @@ def train(algo, reward, seed, timesteps, eval_freq, lr=None, net_arch=None):
     eval_env = build_env(reward, seed + 10_000,
                          os.path.join(run_dir, "eval_monitor"), for_eval=True)
 
+    
     # Build model kwargs 
     model_cls = ALGORITHMS_CLS[algo]
     model_kwargs = {
@@ -101,7 +91,14 @@ def train(algo, reward, seed, timesteps, eval_freq, lr=None, net_arch=None):
         "gamma": GAMMA,
         "seed": seed,
         "verbose": 1,
-    }
+        "device": "cpu" if algo in ["ppo", "a2c"] else "auto", # We use CPU for on-policy algorithms and GPU for off-policy algorithms
+        "tensorboard_log": os.path.join(run_dir, "tensorboard") # We log the training progress to tensorboard
+        }
+
+    if algo in ("td3", "ddpg"):
+        n_act = train_env.action_space.shape[0]
+        model_kwargs["action_noise"] = NormalActionNoise(
+            np.zeros(n_act), 0.1 * np.ones(n_act))
 
     # Override learning rate if specified
     if lr is not None:

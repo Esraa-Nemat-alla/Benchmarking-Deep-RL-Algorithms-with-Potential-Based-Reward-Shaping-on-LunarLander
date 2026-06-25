@@ -26,6 +26,8 @@ from config import (
     RESULTS_DIR,
     SEEDS,
     SUCCESS_THRESHOLD,
+    build_run_name,
+    is_run_complete,
 )
 
 # Nice color palette for up to 5 algorithms 
@@ -58,13 +60,7 @@ def load_run(algo, reward, seed, lr=None, net_arch=None):
     Returns (timesteps, mean_rewards_per_eval, raw_results_matrix).
     Raises FileNotFoundError if the run hasn't been completed yet.
     """
-    # Build the folder name (must match train.py's naming convention)
-    name = f"{algo}_{reward}_seed{seed}"
-    if lr is not None:
-        name += f"_lr{lr}"
-    if net_arch is not None:
-        arch_str = "-".join(str(n) for n in net_arch)
-        name += f"_net{arch_str}"
+    name = build_run_name(algo, reward, seed, lr, net_arch)
 
     path = os.path.join(RESULTS_DIR, name, "evaluations.npz")
     data = np.load(path)
@@ -138,7 +134,10 @@ def build_summary_table(save_csv=True):
             "algorithm": algo,
             "reward_config": reward,
             "n_seeds": len(finals),
-            "n_seeds_completed": sum(1 for seed in SEEDS if _is_complete(f"{algo}_{reward}_seed{seed}")),
+            "n_seeds_completed": sum(
+                1 for seed in SEEDS
+                if is_run_complete(build_run_name(algo, reward, seed))
+            ),
             "final_reward_mean": np.mean(finals),
             "final_reward_std": np.std(finals),
             "success_rate_mean": np.mean(successes),
