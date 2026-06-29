@@ -12,11 +12,11 @@ Updated scope:
 
 - **Algorithms:** PPO, A2C, SAC, TD3, and DDPG.
 - **Environment:** `LunarLanderContinuous-v3`, which uses continuous actions and is harder than the discrete LunarLander task.
-- **Reward settings:** `none`, `distance`, `angle`, and `combined`.
+- **Reward settings:** `none`, `distance`, `angle`, `combined`, and `velocity`.
 - **Seeds:** 3 independent seeds per default experiment.
-- **Default grid:** 5 algorithms x 4 reward settings x 3 seeds = **60 runs**.
+- **Default grid:** 5 algorithms x 5 reward settings x 3 seeds = **75 runs**.
 - **Hyperparameter study:** 2 learning rates x 2 network sizes x 3 seeds = **12 additional runs**.
-- **Total planned experiments:** **72 runs**.
+- **Total planned experiments:** **87 runs**.
 
 This keeps the project focused on potential-based reward shaping while expanding the comparison across on-policy and off-policy methods.
 
@@ -24,24 +24,25 @@ This keeps the project focused on potential-based reward shaping while expanding
 
 Current completed experiment set:
 
-- **Main benchmark:** 23/60 runs complete (PPO 12/12, A2C 11/12; SAC, TD3, DDPG pending).
-- **Hyperparameter study:** 1/12 runs complete.
-- **Total completed runs:** 24/72.
-- **Algorithms with full coverage:** PPO.
-- **Reward configurations:** `none`, `distance`, `angle`, `combined`.
-- **Seeds:** 0, 1, 2 for every completed PPO configuration.
+- **Main benchmark:** 75/75 runs complete.
+- **Hyperparameter study:** 12/12 runs complete.
+- **Total completed runs:** 87/87.
+- **Default-grid coverage:** PPO, A2C, SAC, TD3, and DDPG each 15/15.
+- **Reward configurations:** `none`, `distance`, `angle`, `combined`, `velocity`.
+- **Seeds:** 0, 1, 2 for every default-grid configuration.
+- **Training budget:** mostly 50k timesteps; `sac_none_seed0` is a 20k-timestep run.
 
-> **Note:** Run `python run_priority_experiments.py --phase coverage` to complete the remaining main grid experiments.
+> **Note:** Run `python run_all_experiments.py --timesteps 50000 --device auto` to regenerate reports and skip completed runs automatically. Add `--force` only when you intentionally want to retrain existing runs.
 
-Best observed configurations from the currently available results (PPO and A2C):
+Best observed configurations from the completed results:
 
 | Finding | Result |
 |---|---|
 | Best mean final reward | PPO with `combined` shaping |
-| Highest success rate | PPO with `none` |
-| Largest final-reward shaping gain | A2C with `combined` over baseline |
+| Highest success rate | PPO with `combined` shaping |
+| Largest final-reward shaping gain | PPO with `combined` over baseline |
 
-Main takeaway: combined potential-based reward shaping improved mean final reward for PPO and A2C. SAC, TD3, and DDPG experiments are still pending and need to be run before cross-algorithm conclusions can be drawn.
+Main takeaway: combined potential-based reward shaping is currently the strongest reward configuration for PPO, A2C, SAC, and TD3 by mean final reward. DDPG performs best with `distance` shaping. Conclusions should still be treated as pilot-scale because the runs are short-budget.
 
 Generated results are organized under:
 
@@ -78,6 +79,12 @@ pip install swig
 pip install "gymnasium[box2d]"
 ```
 
+To verify GPU support:
+
+```bash
+python -c "import torch; print(torch.cuda.is_available()); print(torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU only')"
+```
+
 ## 4. Experiment Design
 
 ### Algorithms
@@ -98,6 +105,7 @@ pip install "gymnasium[box2d]"
 | `distance` | `phi(s) = -d / d_max` | Encourages proximity to the landing pad |
 | `angle` | `phi(s) = -abs(theta) / pi` | Encourages upright orientation |
 | `combined` | `0.7 * phi_distance + 0.3 * phi_angle` | Combines position and orientation shaping |
+| `velocity` | `phi(s) = -speed / 5` | Encourages slower movement |
 
 The shaping term follows potential-based reward shaping:
 
@@ -130,7 +138,7 @@ The GUI has five tabs:
 |---|---|
 | Dashboard | Progress bar, results table, learning curves, comparative bar chart |
 | Train | Run one experiment with custom settings and optional hyperparameter overrides |
-| Full Grid | Launch all 60 default benchmark runs |
+| Full Grid | Launch all 75 default benchmark runs |
 | Hyperparameter Study | Run and visualize the 12-run sensitivity analysis |
 | Watch Agent | Replay a trained lander as a GIF |
 
@@ -161,7 +169,7 @@ Trains one RL agent, evaluates on unshaped reward, and saves models/logs under `
 
 ### `run_all_experiments.py`
 
-Runs the full algorithm x reward x seed grid, then runs the hyperparameter sensitivity study.
+Single-command workflow that completes missing default-grid runs, completes missing hyperparameter-study runs, then regenerates reports and figures. Finished runs are skipped automatically.
 
 ### `run_priority_experiments.py`
 
@@ -185,59 +193,19 @@ Streamlit dashboard for training, evaluation, visualization, and replay.
 
 ## 7. Running Experiments
 
-Quick pilot:
+Run the full project workflow with one command:
 
 ```bash
-python train.py --algo ppo --reward distance --seed 0 --timesteps 50000
+python run_all_experiments.py --timesteps 50000 --device auto
 ```
 
-Test all algorithms quickly:
+This completes missing default-grid runs, completes missing hyperparameter-study runs, then regenerates reports and figures. Finished runs are skipped automatically.
 
-```bash
-python train.py --algo ppo  --reward none --seed 0 --timesteps 50000
-python train.py --algo a2c  --reward none --seed 0 --timesteps 50000
-python train.py --algo sac  --reward none --seed 0 --timesteps 50000
-python train.py --algo td3  --reward none --seed 0 --timesteps 50000
-python train.py --algo ddpg --reward none --seed 0 --timesteps 50000
-```
-
-Full grid:
-
-```bash
-python run_all_experiments.py
-```
-
-Priority follow-up experiments:
-
-```bash
-python run_priority_experiments.py --phase seeds --timesteps 50000
-python evaluate.py
-python analyze_results.py
-```
-
-To complete the planned 5 algorithm x 4 reward x 3 seed grid while skipping
-finished runs:
-
-```bash
-python run_priority_experiments.py --phase coverage --timesteps 50000
-python evaluate.py
-python analyze_results.py
-```
-
-Custom hyperparameters:
-
-```bash
-python train.py --algo sac --reward combined --seed 0 --timesteps 500000 --lr 1e-4 --net-arch 256 256
-```
+`--device auto` lets Stable-Baselines3 use CUDA when available. Use `--device cpu` if an on-policy MLP run such as PPO or A2C is faster on CPU.
 
 ## 8. Evaluating Results
 
-After some runs finish:
-
-```bash
-python evaluate.py
-python analyze_results.py
-```
+The one command above also regenerates the evaluation outputs automatically.
 
 Generated outputs:
 
@@ -249,13 +217,7 @@ Generated outputs:
 - `reports/figures/comparative_bar_chart.png`
 - `reports/figures/hyperparam_sensitivity.png`
 
-`evaluate.py` ignores missing runs, so it can be used while experiments are still in progress.
-
-To generate a replay GIF from a trained run:
-
-```bash
-python demo.py --run td3_combined_seed0 --output reports/demos/td3_combined.gif
-```
+`evaluate.py` ignores missing runs, so the reports can still be generated while experiments are in progress.
 
 ## 9. Main Design Choices
 

@@ -5,7 +5,7 @@ import gymnasium as gym
 ENV_NAME = "LunarLanderContinuous-v3"
 
 # Observation space bounds for LunarLanderContinuous-v3.
-# These are fixed constants defined by the environment (x, y ∈ [-1.5, 1.5]).
+# These are fixed constants defined by the environment (x, y in [-1.5, 1.5]).
 # Hard-coded here to avoid creating and closing an env at import time,
 # which would fail if Box2D isn't installed.
 _X_HIGH = 1.5

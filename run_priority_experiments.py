@@ -43,7 +43,7 @@ PHASES = {
         {"algo": "sac", "reward": "distance", "seed": 0},
         {"algo": "ppo", "reward": "none", "seed": 0},
     ],
-    # Complete the planned 5 x 4 x 3 experiment grid.
+    # Complete the planned algorithm x reward x seed experiment grid.
     "coverage": [
         {"algo": algo, "reward": reward, "seed": seed}
         for algo in ALGORITHMS
@@ -54,7 +54,7 @@ PHASES = {
 
 
 
-def _train(job, timesteps, eval_freq, force=False):
+def _train(job, timesteps, eval_freq, force=False, device="auto"):
     run_name = build_run_name(
         job["algo"],
         job["reward"],
@@ -80,6 +80,8 @@ def _train(job, timesteps, eval_freq, force=False):
         str(timesteps),
         "--eval-freq",
         str(eval_freq),
+        "--device",
+        device,
     ]
     if "lr" in job:
         cmd.extend(["--lr", str(job["lr"])])
@@ -141,14 +143,33 @@ def main():
         default=default_workers,
         help=f"Max parallel workers (default: {default_workers}).",
     )
+    parser.add_argument(
+        "--device",
+        choices=["auto", "cuda", "cpu"],
+        default="auto",
+        help="Training device passed to train.py.",
+    )
     args = parser.parse_args()
 
     jobs = _hyperparam_jobs() if args.phase == "hyperparam" else PHASES[args.phase]
-    print(f"Phase: {args.phase} | Jobs: {len(jobs)} | Timesteps: {args.timesteps}")
+    print(
+        f"Phase: {args.phase} | Jobs: {len(jobs)} | "
+        f"Timesteps: {args.timesteps} | Device: {args.device}"
+    )
 
     with concurrent.futures.ProcessPoolExecutor(max_workers=args.workers) as executor:
         # We prepare all jobs and throw them to the library to distribute them to the processor
-        futures = [executor.submit(_train, job, args.timesteps, args.eval_freq, args.force) for job in jobs]
+        futures = [
+            executor.submit(
+                _train,
+                job,
+                args.timesteps,
+                args.eval_freq,
+                args.force,
+                args.device,
+            )
+            for job in jobs
+        ]
         
         # Here we check the results and print if there was an unexpected error
         for future in concurrent.futures.as_completed(futures):

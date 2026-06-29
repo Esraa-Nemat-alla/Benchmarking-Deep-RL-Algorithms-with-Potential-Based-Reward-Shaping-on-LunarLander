@@ -4,7 +4,7 @@ Web GUI for training, evaluating, and watching LunarLander PBRS experiments.
 Tabs:
   - Dashboard:           Progress, results table, learning curves, comparative chart
   - Train:               Run a single experiment with custom settings
-  - Full Grid:           Launch all 60+ benchmark runs
+  - Full Grid:           Launch all 75 default benchmark runs
   - Hyperparameter Study: Launch and view the hyperparameter sensitivity analysis
   - Watch Agent:         Replay a trained lander as a GIF
 
@@ -150,6 +150,11 @@ with tab_train:
             help="E.g. '256,256' for two layers of 256 neurons.",
             disabled=not use_custom_net,
         )
+        device = st.selectbox(
+            "Device",
+            ["auto", "cuda", "cpu"],
+            help="Use auto to let Stable-Baselines3 choose CUDA when available.",
+        )
 
     st.caption(
         f"Training uses `{reward}` shaping. Evaluation always uses the native reward "
@@ -170,6 +175,7 @@ with tab_train:
         if use_custom_net:
             net_layers = [s.strip() for s in custom_net_str.split(",")]
             cmd.extend(["--net-arch"] + net_layers)
+        cmd.extend(["--device", device])
 
         with st.spinner(f"Training {algo}_{reward}_seed{seed}..."):
             code, output = run_command(cmd)

@@ -2,7 +2,7 @@
 
 ## 1. Objective
 
-This project evaluates whether Potential-Based Reward Shaping (PBRS) can improve deep reinforcement learning performance on `LunarLanderContinuous-v3`. The original proposal focused on comparing a smaller set of Stable-Baselines3 algorithms. After feedback that the scope was too limited, the project was expanded to include five algorithms, four reward configurations, three random seeds, and a hyperparameter sensitivity study.
+This project evaluates whether Potential-Based Reward Shaping (PBRS) can improve deep reinforcement learning performance on `LunarLanderContinuous-v3`. The original proposal focused on comparing a smaller set of Stable-Baselines3 algorithms. After feedback that the scope was too limited, the project was expanded to include five algorithms, five reward configurations, three random seeds, and a hyperparameter sensitivity study.
 
 ## 2. Environment
 
@@ -40,6 +40,7 @@ The tested reward configurations are:
 | `distance` | Potential based on distance from the landing pad |
 | `angle` | Potential based on upright orientation |
 | `combined` | Weighted distance and angle potential |
+| `velocity` | Potential based on lander speed |
 
 The `combined` potential uses:
 
@@ -49,26 +50,26 @@ The `combined` potential uses:
 
 ## 5. Experiment Grid
 
-Main benchmark (completed so far):
+Main benchmark:
 
 ```text
-23 of 60 runs complete (PPO: 12/12, A2C: 11/12)
-SAC, TD3, DDPG: pending
+75 of 75 default-grid runs complete
+PPO, A2C, SAC, TD3, and DDPG: 15/15 each
 ```
 
 Hyperparameter sensitivity study:
 
 ```text
-1 of 12 runs complete
+12 of 12 runs complete
 ```
 
 Total completed runs:
 
 ```text
-24 of 72 planned
+87 of 87 planned
 ```
 
-The main benchmark used seeds `0`, `1`, and `2` for every completed algorithm and reward configuration.
+The main benchmark used seeds `0`, `1`, and `2` for every algorithm and reward configuration. Most runs were trained for 50k timesteps; `sac_none_seed0` was trained for 20k timesteps.
 
 ## 6. Metrics
 
@@ -82,29 +83,30 @@ The analysis reports:
 
 ## 7. Key Results
 
-Best current configurations (PPO and A2C only — other algorithms pending):
+Best configurations by mean final evaluation reward:
 
 | Algorithm | Best reward config | Mean final reward | Success rate | Seeds |
 |---|---|---:|---:|---:|
 | PPO | `combined` | 110.9 | 43% | 3 |
-| A2C | `combined` | -214.1 | 0% | 2 |
+| SAC | `combined` | 31.2 | 23% | 3 |
+| TD3 | `combined` | -36.7 | 3% | 3 |
+| DDPG | `distance` | -127.8 | 0% | 3 |
+| A2C | `combined` | -214.1 | 0% | 3 |
 
-> **Note:** SAC, TD3, and DDPG results will be added once those experiments are run.
-
-Overall findings from available data:
+Overall findings:
 
 - Best mean final reward: **PPO with `combined` shaping**.
-- Highest success rate: **PPO with `none`**, at 50%.
-- Largest final-reward shaping gain: **A2C with `combined`**, improving over the A2C baseline.
-- `combined` shaping was the best reward configuration for both PPO and A2C.
+- Highest success rate: **PPO with `combined` shaping**, at 43%.
+- Largest final-reward shaping gain: **PPO with `combined`**, improving over the PPO baseline by 209.6 final-reward points.
+- `combined` shaping was the best reward configuration for PPO, A2C, SAC, and TD3. DDPG performed best with `distance` shaping.
 
 ## 8. Discussion
 
-The results suggest that PBRS can improve reward performance, especially when distance and angle shaping are combined. PPO with `combined` shaping achieved the highest mean final reward among all completed configurations.
+The results suggest that PBRS can improve reward performance, especially when distance and angle shaping are combined. PPO with `combined` shaping achieved the highest mean final reward among all configurations.
 
-However, the highest landing success rate came from PPO without shaping. This means shaping improved reward performance but did not universally improve solved-landing reliability under the current training budget.
+The strongest success rate also came from PPO with `combined` shaping. However, the results still show algorithm-specific behavior: some shaping variants improved final reward but not success rate, and several off-policy runs remained unstable under the short training budget.
 
-A2C remained weak overall, but shaping variants improved its final reward compared with the unshaped baseline. Full cross-algorithm conclusions require completing the SAC, TD3, and DDPG experiments.
+A2C remained weak overall, but shaping variants improved its final reward compared with the unshaped baseline. SAC and TD3 also benefited most from `combined` shaping by final reward, while DDPG performed best with the simpler `distance` potential.
 
 ## 9. Hyperparameter Sensitivity
 
@@ -122,10 +124,9 @@ reports/figures/hyperparam_sensitivity.png
 
 ## 10. Limitations
 
-- Most main benchmark runs are short-budget experiments, mainly around 50k timesteps.
-- Only PPO and A2C experiments are complete; SAC, TD3, and DDPG are pending.
-- The hyperparameter sensitivity study has only 1 of 12 runs complete.
-- Some older PPO baseline runs were trained longer, so direct comparisons should mention the training-budget difference.
+- The completed runs are short-budget pilot experiments, mostly at 50k timesteps.
+- `sac_none_seed0` was trained for 20k timesteps, so SAC baseline comparisons should mention this training-budget difference.
+- The hyperparameter sensitivity study is complete, but it only covers PPO with combined shaping.
 - GIF replay reward is from a single episode and can differ from the mean evaluation reward.
 - Longer training budgets would give a stronger estimate of final algorithm performance.
 
@@ -134,7 +135,7 @@ reports/figures/hyperparam_sensitivity.png
 Recommended next steps:
 
 1. Run the strongest configurations at 100k, 500k, or 1M timesteps with separate run names.
-2. Add more potential functions, such as velocity or leg-contact shaping.
+2. Add more potential functions, such as leg-contact shaping.
 3. Evaluate on an additional continuous-control environment.
 4. Add statistical significance tests once longer runs are available.
 5. Compare PBRS against non-potential reward shaping to show why PBRS is theoretically safer.

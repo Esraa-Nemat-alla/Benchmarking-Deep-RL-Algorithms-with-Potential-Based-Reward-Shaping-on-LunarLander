@@ -48,6 +48,7 @@ REWARD_COLORS = {
     "distance": "#29B6F6",  # Light blue
     "angle":    "#66BB6A",  # Light green
     "combined": "#FFA726",  # Light orange
+    "velocity": "#AB47BC",  # Purple
 }
 
 
@@ -79,7 +80,7 @@ def timesteps_to_threshold(timesteps, mean_rewards, threshold=SUCCESS_THRESHOLD)
 
 
 def area_under_curve(timesteps, mean_rewards):
-    """Total area under the learning curve — higher means faster learning."""
+    """Total area under the learning curve - higher means faster learning."""
     trapezoid = getattr(np, "trapezoid", None) or np.trapz
     return float(trapezoid(mean_rewards, timesteps))
 
@@ -172,7 +173,7 @@ def _collect_curves(algo, reward):
 def make_learning_curve_figure(algo):
     """
     Build a matplotlib figure showing learning curves for one algorithm,
-    with one line per reward configuration (mean ± std across seeds).
+    with one line per reward configuration (mean +/- std across seeds).
     """
     fig, ax = plt.subplots(figsize=(8, 5))
     any_curve = False
@@ -211,7 +212,7 @@ def make_learning_curve_figure(algo):
         linewidth=1,
         label=f"success threshold ({int(SUCCESS_THRESHOLD)})",
     )
-    ax.set_title(f"{algo.upper()} on LunarLanderContinuous — Learning Curves")
+    ax.set_title(f"{algo.upper()} on LunarLanderContinuous - Learning Curves")
     ax.set_xlabel("Training timesteps")
     ax.set_ylabel("Mean evaluation reward (unshaped)")
     ax.legend()
@@ -235,12 +236,12 @@ def plot_learning_curves():
     return saved
 
 
-# COMPARATIVE BAR CHART (all algorithms × all reward configs)
+# COMPARATIVE BAR CHART (all algorithms x all reward configs)
 
 def make_comparative_bar_chart():
     """
     Grouped bar chart: X-axis = algorithms, bars = reward configs.
-    Y-axis = mean final reward. Error bars show ± std across seeds.
+    Y-axis = mean final reward. Error bars show +/- std across seeds.
 
     This is the key figure for answering: "Which algorithm benefits
     most from reward shaping?"
@@ -281,7 +282,7 @@ def make_comparative_bar_chart():
     ax.set_xticklabels([a.upper() for a in algos_in_data])
     ax.set_xlabel("Algorithm")
     ax.set_ylabel("Mean Final Reward (unshaped)")
-    ax.set_title("Algorithm Comparison — Final Reward by Reward Shaping Config")
+    ax.set_title("Algorithm Comparison - Final Reward by Reward Shaping Config")
     ax.legend(title="Reward Shaping")
     fig.tight_layout()
     return fig
@@ -375,7 +376,7 @@ def make_hyperparam_sensitivity_figure():
         return None
 
     fig.suptitle(
-        f"Hyperparameter Sensitivity — {algo.upper()} with '{reward}' shaping",
+        f"Hyperparameter Sensitivity - {algo.upper()} with '{reward}' shaping",
         fontsize=13, fontweight="bold",
     )
     fig.tight_layout()

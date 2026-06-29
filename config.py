@@ -46,7 +46,7 @@ HYPERPARAM_GRID = {
 
 
 # ---------------------------------------------------------------------------
-# Shared utilities — used by train, evaluate, and experiment runners
+# Shared utilities - used by train, evaluate, and experiment runners
 # ---------------------------------------------------------------------------
 
 def build_run_name(algo, reward, seed, lr=None, net_arch=None):
