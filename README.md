@@ -206,7 +206,6 @@ This completes missing default-grid runs, completes missing hyperparameter-study
 ## 8. Evaluating Results
 
 The one command above also regenerates the evaluation outputs automatically.
-
 Generated outputs:
 
 - `reports/tables/results_summary.csv`
