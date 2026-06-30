@@ -1,0 +1,284 @@
+\documentclass[conference,10pt]{IEEEtran}
+\IEEEoverridecommandlockouts
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{url}
+\usepackage{cite}
+\usepackage{microtype}
+\usepackage{balance}
+
+\begin{document}
+
+\title{Benchmarking Deep Reinforcement Learning Algorithms with\\
+Potential-Based Reward Shaping on LunarLanderContinuous}
+
+\author{%
+  \IEEEauthorblockN{Osama Elkhuribi}
+  \IEEEauthorblockA{School of Computing\\Queen's University\\Kingston, Canada\\
+  osama.elkhuribi@queensu.ca}
+  \and
+  \IEEEauthorblockN{Mohamed Abdel Majid}
+  \IEEEauthorblockA{School of Computing\\Queen's University\\Kingston, Canada\\
+  mohamed.abdelmajid@queensu.ca}
+  \and
+  \IEEEauthorblockN{Esraa Nematalla}
+  \IEEEauthorblockA{School of Computing\\Queen's University\\Kingston, Canada\\
+  esraa.nematalla@queensu.ca}
+  \and
+  \IEEEauthorblockN{Arwa Elgazar}
+  \IEEEauthorblockA{School of Computing\\Queen's University\\Kingston, Canada\\
+  arwa.elgazar@queensu.ca}
+}
+
+\maketitle
+
+\begin{abstract}
+Deep reinforcement learning (DRL) agents often require many environment interactions before learning stable control policies. Reward shaping can reduce this sample complexity, but arbitrary reward modifications may change the optimal policy. This project evaluates Potential-Based Reward Shaping (PBRS), a theoretically policy-invariant shaping method, on the continuous-control LunarLanderContinuous-v3 environment. The benchmark compares five Stable-Baselines3 algorithms---PPO, A2C, SAC, TD3, and DDPG---under five reward configurations: no shaping, distance potential, angle potential, combined distance-angle potential, and velocity potential. The completed experimental grid contains 75 default benchmark runs and 12 hyperparameter-sensitivity runs. Evaluation is performed using the native unshaped environment reward to avoid artificially inflating shaped-agent performance. Results show that PBRS can improve final reward for several algorithms, with PPO using combined shaping achieving the strongest mean final reward and success rate in the completed pilot experiments. However, the short training budget and limited number of seeds mean that these results should be interpreted as preliminary evidence rather than final convergence behavior.
+\end{abstract}
+
+\begin{IEEEkeywords}
+reinforcement learning, reward shaping, potential-based reward shaping, LunarLander, Stable-Baselines3, PPO, A2C, SAC, TD3, DDPG
+\end{IEEEkeywords}
+
+\section{Introduction}
+Reinforcement learning (RL) studies how an agent can learn behavior through interaction with an environment. In continuous-control tasks, such as stabilizing and landing a simulated spacecraft, learning can be sample-inefficient because the reward signal may be sparse, delayed, noisy, or difficult to optimize. Deep RL algorithms address high-dimensional value and policy approximation using neural networks, but they still often require extensive exploration before discovering successful strategies.
+
+Reward shaping is a common strategy for improving learning speed by adding auxiliary feedback to the environment reward. For LunarLander, intuitive shaping signals include encouraging the lander to move closer to the landing pad, remain upright, and reduce velocity near touchdown. However, if shaping rewards are designed incorrectly, the agent may learn a policy that maximizes the shaped reward but no longer solves the original task. Potential-Based Reward Shaping (PBRS) addresses this problem by adding a shaping term derived from a scalar potential function, preserving the optimal policy under standard assumptions \cite{ng1999policy}.
+
+The original project proposal focused on a smaller benchmark using DQN, PPO, and A2C on the discrete LunarLander environment. After scope feedback, the project was expanded in two ways. First, the environment was changed to LunarLanderContinuous-v3, which requires continuous engine control and supports a broader set of modern actor-critic methods. Second, the benchmark was expanded to five algorithms: PPO, A2C, SAC, TD3, and DDPG. The project therefore evaluates whether hand-designed PBRS potentials improve learning efficiency and final task performance across both on-policy and off-policy DRL methods.
+
+The main contributions are:
+\begin{itemize}
+    \item a controlled benchmark of five DRL algorithms on LunarLanderContinuous-v3;
+    \item a comparison of five reward configurations, including four PBRS variants;
+    \item evaluation using the original unshaped reward to ensure fair comparison;
+    \item a pilot-scale hyperparameter sensitivity study for PPO with combined shaping;
+    \item an analysis of when shaping improves final reward, success rate, and learning-curve area.
+\end{itemize}
+
+\section{Related Work}
+\subsection{Potential-Based Reward Shaping}
+Ng et al. introduced PBRS and proved that adding a potential-based transformation to the reward function preserves optimal policies \cite{ng1999policy}. The key idea is that the shaping bonus depends only on the difference between the potential of the next state and the current state. This makes the shaping reward equivalent to a potential difference accumulated along a trajectory, rather than a separate objective that changes the task.
+
+Subsequent work has investigated how potential functions can be designed for practical RL problems. Badnava and Mozayani studied potential-based reward shaping strategies for RL agents and motivated the use of shaping functions that encode task-relevant progress while maintaining theoretical safety \cite{badnava2019pbrs}. In the present project, potentials are manually designed from interpretable LunarLander state variables: distance to the landing pad, body angle, and velocity.
+
+\subsection{Deep RL Algorithms}
+PPO is an on-policy policy-gradient method that improves training stability by clipping policy updates \cite{schulman2017ppo}. A2C is a synchronous advantage actor-critic method derived from the A3C family \cite{mnih2016a3c}. SAC is an off-policy actor-critic algorithm that maximizes both expected reward and entropy, encouraging exploration and robustness in continuous action spaces \cite{haarnoja2018sac}. TD3 improves deterministic actor-critic learning through twin critics, delayed policy updates, and target-policy smoothing \cite{fujimoto2018td3}. DDPG combines deterministic policy gradients with deep function approximation and replay buffers for continuous control \cite{lillicrap2015ddpg}.
+
+Stable-Baselines3 provides reliable implementations of these algorithms and is used as the algorithmic framework for this benchmark \cite{raffin2021sb3}. The environment is provided by Gymnasium, a maintained RL environment interface \cite{towers2024gymnasium}.
+
+\section{Environment and Problem Formulation}
+\subsection{Environment}
+The benchmark uses LunarLanderContinuous-v3. In this environment, the lander must control continuous engine forces to land safely between the flags on the landing pad. Compared with the discrete LunarLander variant, continuous control is more difficult because the policy must output real-valued actions rather than choosing among a small set of thrust commands.
+
+The observation vector is an eight-dimensional state representation:
+\begin{equation}
+    s = [x, y, \dot{x}, \dot{y}, \theta, \dot{\theta}, \ell_L, \ell_R]^T,
+\end{equation}
+where $(x,y)$ is the lander's position, $(\dot{x},\dot{y})$ is linear velocity, $\theta$ is orientation, $\dot{\theta}$ is angular velocity, and $\ell_L, \ell_R \in \{0,1\}$ indicate whether the left and right legs are in contact with the ground.
+
+The continuous action vector contains the main-engine and side-engine controls. The exact bounds are defined by the Gymnasium environment, while the learning algorithms interact with the action space through Stable-Baselines3 policy networks.
+
+\subsection{Objective}
+The objective is to maximize the native environment return. Evaluation is always conducted using the unshaped environment reward, even when the training environment uses PBRS. This design avoids reporting shaped reward as task performance and makes shaped and unshaped agents directly comparable.
+
+\section{Potential-Based Reward Shaping}
+PBRS defines an additional shaping reward:
+\begin{equation}
+    F(s,a,s') = \gamma \Phi(s') - \Phi(s),
+\end{equation}
+where $\Phi(s)$ is a scalar potential function and $\gamma$ is the discount factor. The shaped reward is:
+\begin{equation}
+    r'(s,a,s') = r(s,a,s') + \lambda[\gamma\Phi(s') - \Phi(s)],
+\end{equation}
+where $\lambda$ controls the shaping strength. In this project, $\gamma=0.99$ and $\lambda=1.0$ are used in the default grid.
+
+The implemented potentials are normalized so that the shaping term does not dominate the original environment reward. The distance potential is:
+\begin{equation}
+    \Phi_{dist}(s) = -\min\left(1, \frac{\sqrt{x^2+y^2}}{d_{max}}\right),
+\end{equation}
+where $d_{max}$ is computed from fixed position bounds. The angle potential is:
+\begin{equation}
+    \Phi_{angle}(s) = -\frac{|\theta|}{2\pi}.
+\end{equation}
+The combined potential prioritizes position while still encouraging upright orientation:
+\begin{equation}
+    \Phi_{combined}(s) = 0.7\Phi_{dist}(s) + 0.3\Phi_{angle}(s).
+\end{equation}
+Finally, a velocity potential encourages slower motion:
+\begin{equation}
+    \Phi_{vel}(s) = -\min\left(1, \frac{\sqrt{\dot{x}^2 + \dot{y}^2}}{5}\right).
+\end{equation}
+
+The terminal-state potential is treated as zero, ensuring that completed episodes do not carry an artificial future potential.
+
+\section{Methodology}
+\subsection{Algorithms}
+The benchmark includes PPO, A2C, SAC, TD3, and DDPG. PPO and A2C represent on-policy actor-critic methods. SAC, TD3, and DDPG represent off-policy continuous-control methods that use replay buffers and are commonly applied to continuous action spaces.
+
+All algorithms use Stable-Baselines3 implementations and an MLP policy. Unless otherwise specified in the hyperparameter study, default Stable-Baselines3 hyperparameters are used. The hyperparameter sensitivity study varies the learning rate and network size for PPO with combined shaping.
+
+\subsection{Experimental Grid}
+The default experiment grid contains:
+\begin{equation}
+    5 \text{ algorithms} \times 5 \text{ reward settings} \times 3 \text{ seeds} = 75 \text{ runs}.
+\end{equation}
+The reward settings are: no shaping, distance, angle, combined, and velocity. Seeds 0, 1, and 2 are used for each default-grid configuration.
+
+The hyperparameter sensitivity study contains 12 additional runs:
+\begin{equation}
+    2 \text{ learning rates} \times 2 \text{ network sizes} \times 3 \text{ seeds} = 12 \text{ runs}.
+\end{equation}
+It evaluates PPO with combined shaping using learning rates $3\times10^{-4}$ and $1\times10^{-4}$, and network architectures $[64,64]$ and $[256,256]$.
+
+\subsection{Evaluation Metrics}
+The project reports five evaluation metrics:
+\begin{itemize}
+    \item mean final evaluation reward;
+    \item standard deviation across seeds;
+    \item success rate using the solved threshold of return $\geq 200$;
+    \item timesteps to first reach a return of 200, when achieved;
+    \item area under the evaluation learning curve (AUC).
+\end{itemize}
+
+Most completed runs use a 50k-timestep pilot budget. One SAC baseline run was completed at 20k timesteps, which is noted as a limitation when comparing SAC baseline performance.
+
+\section{Results}
+\subsection{Overall Completion}
+The main benchmark completed all 75 default-grid runs. The hyperparameter study completed all 12 planned runs, giving 87 completed runs in total. Table~\ref{tab:best} summarizes the best reward configuration for each algorithm according to mean final evaluation reward.
+
+\begin{table}[t]
+\centering
+\caption{Best reward configuration per algorithm. Final reward is mean $\pm$ standard deviation across three seeds.}
+\label{tab:best}
+\begin{tabular}{llcc}
+\toprule
+Algorithm & Best config & Final reward & Success \\
+\midrule
+PPO & combined & $110.9 \pm 78.3$ & 43.3\% \\
+SAC & combined & $31.2 \pm 70.0$ & 23.3\% \\
+TD3 & combined & $-36.7 \pm 55.6$ & 3.3\% \\
+DDPG & distance & $-127.8 \pm 69.6$ & 0.0\% \\
+A2C & combined & $-214.1 \pm 64.6$ & 0.0\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{rl_report_figures/final_reward_bar.png}
+    \caption{Mean final evaluation reward by algorithm and reward configuration. PPO with combined shaping achieved the strongest mean final reward in the completed pilot experiments.}
+    \label{fig:final_reward}
+\end{figure}
+
+\subsection{Final Reward}
+Figure~\ref{fig:final_reward} shows that reward shaping has different effects across algorithms. PPO benefits strongly from combined shaping, improving from a no-shaping mean final reward of $-98.7$ to $110.9$. A2C also improves under distance, angle, and combined shaping, although its absolute performance remains weak. SAC achieves its highest final reward with combined shaping, but its no-shaping baseline is already positive. TD3 benefits most from combined shaping, while DDPG benefits only slightly from distance shaping and is hurt by angle, combined, and velocity shaping.
+
+\begin{table}[t]
+\centering
+\caption{Selected shaping effects relative to the no-shaping baseline.}
+\label{tab:delta}
+\begin{tabular}{llcc}
+\toprule
+Algorithm & Shaping & $\Delta$ final reward & $\Delta$ success \\
+\midrule
+PPO & combined & $+209.6$ & $+40.0$ pp \\
+A2C & combined & $+140.1$ & $0.0$ pp \\
+A2C & angle & $+131.3$ & $0.0$ pp \\
+TD3 & combined & $+43.1$ & $+3.3$ pp \\
+SAC & combined & $+13.2$ & $+6.7$ pp \\
+DDPG & distance & $+10.9$ & $-3.3$ pp \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Success Rate}
+Success rate is stricter than final reward because a run must achieve a return of at least 200. PPO with combined shaping achieves the highest success rate at 43.3\%. SAC with velocity shaping reaches a 30.0\% success rate, although its mean final reward is slightly negative. SAC with combined shaping reaches 23.3\%, and TD3 with combined shaping reaches 3.3\%. A2C and most DDPG configurations do not reach successful landings under the short training budget.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{rl_report_figures/success_rate_bar.png}
+    \caption{Success rate by algorithm and reward configuration. Success is defined as evaluation return $\geq 200$.}
+    \label{fig:success_rate}
+\end{figure}
+
+\subsection{Learning-Curve Area}
+AUC provides a sample-efficiency view of performance over training. PPO combined shaping improves AUC substantially relative to the PPO baseline, suggesting faster learning as well as stronger final performance. For SAC, the no-shaping baseline has a better AUC than the shaped variants, indicating that shaping may improve later final reward without always improving early learning. For DDPG, distance shaping improves final reward and AUC modestly, while more complex shaping variants are not beneficial.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{rl_report_figures/delta_reward_bar.png}
+    \caption{Final-reward change relative to each algorithm's no-shaping baseline. Positive values indicate that the shaped version improved final reward.}
+    \label{fig:delta}
+\end{figure}
+
+\section{Discussion}
+The main result is that PBRS is useful, but its benefit is algorithm-dependent and potential-dependent. Combined distance-angle shaping is the most reliable potential in this pilot benchmark. It gives the best final reward for PPO, SAC, TD3, and A2C, and it produces the largest overall improvement for PPO. This matches the intuition that distance-to-target provides strong global guidance, while angle shaping helps refine the landing posture.
+
+PPO with combined shaping is the strongest configuration in the completed results. This is notable because PPO is an on-policy method and does not reuse past shaped transitions through a replay buffer. The result suggests that the combined potential gives immediate trajectory-level guidance that is useful even without off-policy replay. However, the success rate of 43.3\% also indicates that the policy is not consistently solved within the 50k-timestep pilot budget.
+
+A2C remains weak in absolute terms but benefits from shaping. Its final reward improves by more than 100 points under several shaping configurations, suggesting that PBRS gives useful gradients even when the base algorithm struggles. SAC has competitive baseline performance and achieves its best final reward with combined shaping, but its AUC results suggest that shaping did not uniformly improve sample efficiency. TD3 benefits from combined shaping, while DDPG is comparatively unstable and performs best with the simpler distance potential.
+
+The results also show that not all shaping is helpful. Velocity shaping improves the SAC success rate, but it hurts PPO, TD3, and DDPG final reward. Angle-only shaping is useful for PPO and A2C but not for TD3 or DDPG. This supports the need to evaluate potential design empirically rather than assuming that any intuitive shaping signal will improve learning.
+
+\section{Limitations}
+Several limitations affect the strength of the conclusions. First, most runs were trained for only 50k timesteps, which is a short budget for continuous-control RL. Longer runs at 100k, 500k, or 1M timesteps are needed to evaluate convergence behavior. Second, only three seeds were used in the default grid. This is acceptable for pilot analysis but insufficient for strong statistical significance. Third, one SAC baseline run used 20k timesteps, making the SAC no-shaping comparison less clean than the other algorithm baselines. Fourth, the hyperparameter study is limited to PPO with combined shaping, so robustness to hyperparameter choice is not fully tested for SAC, TD3, DDPG, or A2C. Finally, all potentials are hand-designed. More systematic methods, such as learned potentials or ablation over the shaping coefficient $\lambda$, could provide deeper insight.
+
+\section{Reproducibility}
+The codebase is organized around a small set of scripts. The file \texttt{reward\_shaping.py} defines the LunarLanderContinuous-v3 environment, potential functions, and PBRS wrapper. The file \texttt{train.py} trains one algorithm-reward-seed configuration and evaluates on the unshaped environment. The file \texttt{run\_all\_experiments.py} completes missing default-grid and hyperparameter-study runs, then regenerates analysis outputs. Evaluation artifacts are written under \texttt{reports/tables} and \texttt{reports/figures}.
+
+The full workflow can be reproduced with:
+\begin{verbatim}
+python run_all_experiments.py --timesteps 50000 --device auto
+python evaluate.py
+python analyze_results.py
+\end{verbatim}
+The Streamlit dashboard can be launched with:
+\begin{verbatim}
+streamlit run app.py
+\end{verbatim}
+
+\section{Conclusion}
+This project benchmarked PBRS across five DRL algorithms on LunarLanderContinuous-v3. The completed pilot results show that reward shaping can improve final performance, especially when distance and angle potentials are combined. PPO with combined shaping achieved the highest mean final reward and the highest success rate in the completed benchmark. SAC and TD3 also benefited most from combined shaping by final reward, while DDPG performed best with distance-only shaping. Overall, PBRS appears promising for improving continuous-control LunarLander learning, but longer training budgets, more seeds, and statistical tests are needed before making stronger claims about final algorithm superiority.
+
+\section*{Generative AI Disclosure}
+An AI model was used only to polish writing and organize LaTeX formatting. The project idea, experimental methodology, reward-shaping equations, potential functions, code implementation, and result interpretation were developed by the team.
+
+\balance
+\begin{thebibliography}{10}
+
+\bibitem{ng1999policy}
+A. Y. Ng, D. Harada, and S. Russell, ``Policy invariance under reward transformations: Theory and application to reward shaping,'' in \emph{Proc. 16th Int. Conf. Machine Learning (ICML)}, 1999, pp. 278--287.
+
+\bibitem{badnava2019pbrs}
+B. Badnava and N. Mozayani, ``A new potential-based reward shaping for reinforcement learning agent,'' \emph{arXiv:1902.06239}, 2019.
+
+\bibitem{schulman2017ppo}
+J. Schulman, F. Wolski, P. Dhariwal, A. Radford, and O. Klimov, ``Proximal policy optimization algorithms,'' \emph{arXiv:1707.06347}, 2017.
+
+\bibitem{mnih2016a3c}
+V. Mnih \emph{et al.}, ``Asynchronous methods for deep reinforcement learning,'' in \emph{Proc. Int. Conf. Machine Learning (ICML)}, 2016, pp. 1928--1937.
+
+\bibitem{haarnoja2018sac}
+T. Haarnoja, A. Zhou, P. Abbeel, and S. Levine, ``Soft actor-critic: Off-policy maximum entropy deep reinforcement learning with a stochastic actor,'' in \emph{Proc. Int. Conf. Machine Learning (ICML)}, 2018, pp. 1861--1870.
+
+\bibitem{fujimoto2018td3}
+S. Fujimoto, H. van Hoof, and D. Meger, ``Addressing function approximation error in actor-critic methods,'' in \emph{Proc. Int. Conf. Machine Learning (ICML)}, 2018, pp. 1587--1596.
+
+\bibitem{lillicrap2015ddpg}
+T. P. Lillicrap \emph{et al.}, ``Continuous control with deep reinforcement learning,'' \emph{arXiv:1509.02971}, 2015.
+
+\bibitem{raffin2021sb3}
+A. Raffin, A. Hill, A. Gleave, A. Kanervisto, M. Ernestus, and N. Dormann, ``Stable-Baselines3: Reliable reinforcement learning implementations,'' \emph{Journal of Machine Learning Research}, vol. 22, no. 268, pp. 1--8, 2021.
+
+\bibitem{towers2024gymnasium}
+M. Towers \emph{et al.}, ``Gymnasium: A standard interface for reinforcement learning environments,'' \emph{arXiv:2407.17032}, 2024.
+
+\bibitem{githubrepo}
+E. Nematalla, O. Elkhuribi, M. Abdel Majid, and A. Elgazar, ``Benchmarking deep RL algorithms with potential-based reward shaping on LunarLander,'' GitHub repository, 2026.
+
+\end{thebibliography}
+
+\end{document}
