@@ -2,9 +2,9 @@
 
 ## Current Experiment Coverage
 
-- Completed summary rows: 25.
+- Completed summary rows: 8.
 - Algorithms represented: a2c, ddpg, ppo, sac, td3.
-- Reward configs represented: angle, combined, distance, none, velocity.
+- Reward configs represented: combined, distance, none, velocity.
 - Default-grid coverage: 75/75 runs complete.
 - Hyperparameter-study coverage: 12/12 runs complete.
 - Current runs are mostly 50k-timestep pilot runs, so conclusions should be treated as preliminary until longer training is added.
@@ -13,17 +13,17 @@
 
 | Algorithm | Best reward config | Final reward | Success rate | Seeds |
 |---|---|---:|---:|---:|
-| A2C | combined | -214.1 | 0% | 3 |
-| DDPG | distance | -127.8 | 0% | 3 |
-| PPO | combined | 110.9 | 43% | 3 |
-| SAC | combined | 31.2 | 23% | 3 |
-| TD3 | combined | -36.7 | 3% | 3 |
+| A2C | velocity | -338.1 | 0% | 3 |
+| DDPG | combined | 123.5 | 55% | 2 |
+| PPO | none | -16.9 | 5% | 2 |
+| SAC | velocity | -2.0 | 30% | 3 |
+| TD3 | velocity | -142.5 | 0% | 3 |
 
 ## Main Observations
 
-- Best final reward so far: PPO with `combined` (110.9).
-- Highest success rate so far: PPO with `combined` (43%).
-- Largest shaping improvement over baseline so far: PPO with `combined` (delta final reward = 209.6).
+- Best final reward so far: DDPG with `combined` (123.5).
+- Highest success rate so far: DDPG with `combined` (55%).
+- Largest shaping improvement over baseline so far: PPO with `velocity` (delta final reward = -118.7).
 
 ## Reward Shaping Effect
 
@@ -31,26 +31,8 @@ Positive delta means the shaped version outperformed the no-shaping baseline for
 
 | Algorithm | Shaping | Delta final reward | Delta success rate | Seeds |
 |---|---|---:|---:|---:|
-| PPO | combined | 209.6 | 40% | 3 |
-| A2C | combined | 140.1 | 0% | 3 |
-| A2C | angle | 131.3 | 0% | 3 |
-| A2C | distance | 126.4 | 0% | 3 |
-| TD3 | combined | 43.1 | 3% | 3 |
-| PPO | angle | 36.5 | 3% | 3 |
-| A2C | velocity | 16.1 | 0% | 3 |
-| SAC | combined | 13.2 | 7% | 3 |
-| DDPG | distance | 10.9 | -3% | 3 |
-| TD3 | distance | 2.8 | 0% | 3 |
-| DDPG | combined | -1.7 | -3% | 3 |
-| SAC | angle | -16.7 | 3% | 3 |
-| SAC | velocity | -20.0 | 13% | 3 |
-| TD3 | angle | -28.2 | 0% | 3 |
-| PPO | velocity | -37.0 | 0% | 3 |
-| SAC | distance | -45.6 | -3% | 3 |
-| TD3 | velocity | -62.7 | 0% | 3 |
-| PPO | distance | -65.1 | -3% | 3 |
-| DDPG | angle | -79.6 | -3% | 3 |
-| DDPG | velocity | -84.5 | -3% | 3 |
+| PPO | velocity | -118.7 | -2% | 2 |
+| PPO | distance | -149.1 | -5% | 1 |
 
 ## Recommended Next Experiments
 
