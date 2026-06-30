@@ -26,9 +26,15 @@ from config import (
     RESULTS_DIR,
     SEEDS,
     SUCCESS_THRESHOLD,
+    build_run_name,
+    is_run_complete,
 )
 
-# ── Nice color palette for up to 5 algorithms ───────────────────────
+# Nice color palette for up to 5 algorithms 
+REPORTS_DIR = "reports"
+FIGURES_DIR = os.path.join(REPORTS_DIR, "figures")
+TABLES_DIR = os.path.join(REPORTS_DIR, "tables")
+
 ALGO_COLORS = {
     "ppo":  "#2196F3",  # Blue
     "a2c":  "#4CAF50",  # Green
@@ -42,12 +48,11 @@ REWARD_COLORS = {
     "distance": "#29B6F6",  # Light blue
     "angle":    "#66BB6A",  # Light green
     "combined": "#FFA726",  # Light orange
+    "velocity": "#AB47BC",  # Purple
 }
 
 
-# ═══════════════════════════════════════════════════════════════════════
 # DATA LOADING
-# ═══════════════════════════════════════════════════════════════════════
 
 def load_run(algo, reward, seed, lr=None, net_arch=None):
     """
@@ -56,13 +61,7 @@ def load_run(algo, reward, seed, lr=None, net_arch=None):
     Returns (timesteps, mean_rewards_per_eval, raw_results_matrix).
     Raises FileNotFoundError if the run hasn't been completed yet.
     """
-    # Build the folder name (must match train.py's naming convention)
-    name = f"{algo}_{reward}_seed{seed}"
-    if lr is not None:
-        name += f"_lr{lr}"
-    if net_arch is not None:
-        arch_str = "-".join(str(n) for n in net_arch)
-        name += f"_net{arch_str}"
+    name = build_run_name(algo, reward, seed, lr, net_arch)
 
     path = os.path.join(RESULTS_DIR, name, "evaluations.npz")
     data = np.load(path)
@@ -81,14 +80,30 @@ def timesteps_to_threshold(timesteps, mean_rewards, threshold=SUCCESS_THRESHOLD)
 
 
 def area_under_curve(timesteps, mean_rewards):
-    """Total area under the learning curve — higher means faster learning."""
+    """Total area under the learning curve - higher means faster learning."""
     trapezoid = getattr(np, "trapezoid", None) or np.trapz
     return float(trapezoid(mean_rewards, timesteps))
 
 
-# ═══════════════════════════════════════════════════════════════════════
+def nanmean_or_nan(values):
+    """Mean that stays quiet when every value is NaN."""
+    arr = np.asarray(values, dtype=float)
+    finite = arr[~np.isnan(arr)]
+    if len(finite) == 0:
+        return np.nan
+    return float(np.mean(finite))
+
+
+def nanstd_or_nan(values):
+    """Standard deviation that stays quiet when every value is NaN."""
+    arr = np.asarray(values, dtype=float)
+    finite = arr[~np.isnan(arr)]
+    if len(finite) == 0:
+        return np.nan
+    return float(np.std(finite))
+
+
 # SUMMARY TABLE
-# ═══════════════════════════════════════════════════════════════════════
 
 def build_summary_table(save_csv=True):
     """
@@ -100,6 +115,7 @@ def build_summary_table(save_csv=True):
     rows = []
     for algo, reward in itertools.product(ALGORITHMS, REWARD_CONFIGS):
         ttt, aucs, successes, finals = [], [], [], []
+        
 
         for seed in SEEDS:
             try:
@@ -119,24 +135,27 @@ def build_summary_table(save_csv=True):
             "algorithm": algo,
             "reward_config": reward,
             "n_seeds": len(finals),
+            "n_seeds_completed": sum(
+                1 for seed in SEEDS
+                if is_run_complete(build_run_name(algo, reward, seed))
+            ),
             "final_reward_mean": np.mean(finals),
             "final_reward_std": np.std(finals),
             "success_rate_mean": np.mean(successes),
-            "timesteps_to_200_mean": np.nanmean(ttt),
-            "timesteps_to_200_std": np.nanstd(ttt),
+            "timesteps_to_200_mean": nanmean_or_nan(ttt),
+            "timesteps_to_200_std": nanstd_or_nan(ttt),
             "auc_mean": np.mean(aucs),
             "auc_std": np.std(aucs),
         })
 
     df = pd.DataFrame(rows)
     if save_csv and not df.empty:
-        df.to_csv("results_summary.csv", index=False)
+        os.makedirs(TABLES_DIR, exist_ok=True)
+        df.to_csv(os.path.join(TABLES_DIR, "results_summary.csv"), index=False)
     return df
 
 
-# ═══════════════════════════════════════════════════════════════════════
 # LEARNING CURVES (per algorithm)
-# ═══════════════════════════════════════════════════════════════════════
 
 def _collect_curves(algo, reward):
     """Gather learning curves from all seeds for one (algo, reward) pair."""
@@ -154,7 +173,7 @@ def _collect_curves(algo, reward):
 def make_learning_curve_figure(algo):
     """
     Build a matplotlib figure showing learning curves for one algorithm,
-    with one line per reward configuration (mean ± std across seeds).
+    with one line per reward configuration (mean +/- std across seeds).
     """
     fig, ax = plt.subplots(figsize=(8, 5))
     any_curve = False
@@ -193,7 +212,7 @@ def make_learning_curve_figure(algo):
         linewidth=1,
         label=f"success threshold ({int(SUCCESS_THRESHOLD)})",
     )
-    ax.set_title(f"{algo.upper()} on LunarLanderContinuous — Learning Curves")
+    ax.set_title(f"{algo.upper()} on LunarLanderContinuous - Learning Curves")
     ax.set_xlabel("Training timesteps")
     ax.set_ylabel("Mean evaluation reward (unshaped)")
     ax.legend()
@@ -208,7 +227,8 @@ def plot_learning_curves():
         fig = make_learning_curve_figure(algo)
         if fig is None:
             continue
-        out_path = f"{algo}_learning_curves.png"
+        os.makedirs(FIGURES_DIR, exist_ok=True)
+        out_path = os.path.join(FIGURES_DIR, f"{algo}_learning_curves.png")
         fig.savefig(out_path, dpi=150)
         plt.close(fig)
         saved.append(out_path)
@@ -216,14 +236,12 @@ def plot_learning_curves():
     return saved
 
 
-# ═══════════════════════════════════════════════════════════════════════
-# COMPARATIVE BAR CHART (all algorithms × all reward configs)
-# ═══════════════════════════════════════════════════════════════════════
+# COMPARATIVE BAR CHART (all algorithms x all reward configs)
 
 def make_comparative_bar_chart():
     """
     Grouped bar chart: X-axis = algorithms, bars = reward configs.
-    Y-axis = mean final reward. Error bars show ± std across seeds.
+    Y-axis = mean final reward. Error bars show +/- std across seeds.
 
     This is the key figure for answering: "Which algorithm benefits
     most from reward shaping?"
@@ -264,7 +282,7 @@ def make_comparative_bar_chart():
     ax.set_xticklabels([a.upper() for a in algos_in_data])
     ax.set_xlabel("Algorithm")
     ax.set_ylabel("Mean Final Reward (unshaped)")
-    ax.set_title("Algorithm Comparison — Final Reward by Reward Shaping Config")
+    ax.set_title("Algorithm Comparison - Final Reward by Reward Shaping Config")
     ax.legend(title="Reward Shaping")
     fig.tight_layout()
     return fig
@@ -275,16 +293,15 @@ def plot_comparative_bar_chart():
     fig = make_comparative_bar_chart()
     if fig is None:
         return None
-    out_path = "comparative_bar_chart.png"
+    os.makedirs(FIGURES_DIR, exist_ok=True)
+    out_path = os.path.join(FIGURES_DIR, "comparative_bar_chart.png")
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
     print(f"Saved {out_path}")
     return out_path
 
 
-# ═══════════════════════════════════════════════════════════════════════
 # HYPERPARAMETER SENSITIVITY ANALYSIS
-# ═══════════════════════════════════════════════════════════════════════
 
 def make_hyperparam_sensitivity_figure():
     """
@@ -351,14 +368,15 @@ def make_hyperparam_sensitivity_figure():
         ax.set_xlabel("Training timesteps")
         if i == 0:
             ax.set_ylabel("Mean evaluation reward (unshaped)")
-        ax.legend()
+        if ax.get_legend_handles_labels()[0]:
+            ax.legend()
 
     if not any_data:
         plt.close(fig)
         return None
 
     fig.suptitle(
-        f"Hyperparameter Sensitivity — {algo.upper()} with '{reward}' shaping",
+        f"Hyperparameter Sensitivity - {algo.upper()} with '{reward}' shaping",
         fontsize=13, fontweight="bold",
     )
     fig.tight_layout()
@@ -370,16 +388,15 @@ def plot_hyperparam_sensitivity():
     fig = make_hyperparam_sensitivity_figure()
     if fig is None:
         return None
-    out_path = "hyperparam_sensitivity.png"
+    os.makedirs(FIGURES_DIR, exist_ok=True)
+    out_path = os.path.join(FIGURES_DIR, "hyperparam_sensitivity.png")
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
     print(f"Saved {out_path}")
     return out_path
 
 
-# ═══════════════════════════════════════════════════════════════════════
 # UTILITY
-# ═══════════════════════════════════════════════════════════════════════
 
 def count_completed_runs():
     """Count how many runs have finished out of the full grid."""
@@ -392,16 +409,14 @@ def count_completed_runs():
     return done, total
 
 
-# ═══════════════════════════════════════════════════════════════════════
 # MAIN
-# ═══════════════════════════════════════════════════════════════════════
 
 def main():
     print("Building summary table...")
     df = build_summary_table()
     if not df.empty:
         print(df.to_string(index=False))
-        print("\nSaved results_summary.csv")
+        print(f"\nSaved {os.path.join(TABLES_DIR, 'results_summary.csv')}")
     else:
         print("No results found. Have you run the training yet?")
 
@@ -414,7 +429,7 @@ def main():
     print("\nGenerating hyperparameter sensitivity plot...")
     plot_hyperparam_sensitivity()
 
-    print("\nDone! Check the generated PNG files and results_summary.csv.")
+    print("\nDone! Check reports/figures and reports/tables.")
 
 
 if __name__ == "__main__":

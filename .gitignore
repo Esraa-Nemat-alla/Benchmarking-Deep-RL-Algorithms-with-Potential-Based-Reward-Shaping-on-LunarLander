@@ -3,9 +3,12 @@ results/
 results_test/
 *.zip
 
-# Generated plots and summaries (regenerate with evaluate.py)
-*_learning_curves.png
-results_summary.csv
+# Legacy generated plots and summaries in the project root.
+# Curated report artifacts under reports/ are intentionally kept.
+/*_learning_curves.png
+/comparative_bar_chart.png
+/hyperparam_sensitivity.png
+/results_summary.csv
 
 # Python
 __pycache__/

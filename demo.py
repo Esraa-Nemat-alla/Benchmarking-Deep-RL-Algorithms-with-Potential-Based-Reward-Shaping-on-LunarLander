@@ -4,6 +4,7 @@ Record trained agents on the unshaped LunarLander environment.
 Used by the Streamlit "Watch Agent" tab to replay a saved model as a GIF.
 Supports all 5 algorithms by auto-detecting the class from the folder name.
 """
+import argparse
 import os
 
 import gymnasium as gym
@@ -12,7 +13,9 @@ from stable_baselines3 import PPO, A2C, SAC, TD3, DDPG
 from config import RESULTS_DIR
 from reward_shaping import ENV_NAME
 
-# ── Map algo names to SB3 classes (same as train.py) ─────────────────
+DEMOS_DIR = os.path.join("reports", "demos")
+
+# Map algo names to SB3 classes (same as train.py) 
 _ALGO_CLS = {
     "ppo":  PPO,
     "a2c":  A2C,
@@ -116,3 +119,84 @@ def frame_to_gif_bytes(frames, duration_ms=50):
     )
     buffer.seek(0)
     return buffer.getvalue()
+
+
+def save_gif(frames, output_path, duration_ms=50):
+    """Save RGB frames to a GIF file."""
+    from PIL import Image
+
+    output_dir = os.path.dirname(output_path)
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
+
+    images = [Image.fromarray(frame) for frame in frames]
+    images[0].save(
+        output_path,
+        format="GIF",
+        save_all=True,
+        append_images=images[1:],
+        duration=duration_ms,
+        loop=0,
+    )
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Record a trained LunarLander agent as a GIF."
+    )
+    parser.add_argument(
+        "--run",
+        default=None,
+        help="Run folder name inside results/, e.g. ppo_none_seed0.",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=0,
+        help="Episode seed used for replay.",
+    )
+    parser.add_argument(
+        "--output",
+        default=os.path.join(DEMOS_DIR, "demo.gif"),
+        help="Output GIF path.",
+    )
+    parser.add_argument(
+        "--final",
+        action="store_true",
+        help="Use final_model instead of best_model.",
+    )
+    args = parser.parse_args()
+
+    runs = list_runs()
+    if not runs:
+        print("No saved models found in results/. Train an agent first.")
+        return
+
+    if args.run is None:
+        print("Available runs:")
+        for run_name in runs:
+            print(f"  {run_name}")
+        print("\nExample:")
+        print(f"  python demo.py --run {runs[0]} --output reports/demos/demo.gif")
+        return
+
+    if args.run not in runs:
+        print(f"Run '{args.run}' was not found or has no saved model.")
+        print("Available runs:")
+        for run_name in runs:
+            print(f"  {run_name}")
+        return
+
+    frames, total_reward = record_episode(
+        args.run,
+        prefer_best=not args.final,
+        seed=args.seed,
+    )
+    save_gif(frames, args.output)
+    print(f"Saved {args.output}")
+    print(f"Run: {args.run}")
+    print(f"Total reward: {total_reward:.1f}")
+
+
+if __name__ == "__main__":
+    main()

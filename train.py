@@ -15,15 +15,18 @@ Usage examples:
 """
 import os
 import argparse
+import importlib.util
+import numpy as np
 
 from stable_baselines3 import PPO, A2C, SAC, TD3, DDPG
 from stable_baselines3.common.callbacks import EvalCallback
 from stable_baselines3.common.monitor import Monitor
 
-from config import GAMMA, REWARD_CONFIGS, RESULTS_DIR
+from config import GAMMA, RESULTS_DIR, REWARD_CONFIGS, build_run_name
 from reward_shaping import make_lunarlander_env
+from stable_baselines3.common.noise import NormalActionNoise
 
-# ── Map CLI names to SB3 classes ─────────────────────────────────────
+# Map CLI names to SB3 classes 
 ALGORITHMS_CLS = {
     "ppo":  PPO,
     "a2c":  A2C,
@@ -33,13 +36,21 @@ ALGORITHMS_CLS = {
 }
 
 
+def _tensorboard_log_dir(run_dir):
+    """Return a TensorBoard log directory only when tensorboard is installed."""
+    if importlib.util.find_spec("tensorboard") is None:
+        print("[Warning] tensorboard is not installed. TensorBoard logging disabled.")
+        return None
+    return os.path.join(run_dir, "tensorboard")
+
+
 def build_env(reward_config, seed, log_path, for_eval=False):
     """
     Create a LunarLanderContinuous environment.
 
     When for_eval=True, we always use the unshaped reward so that the
     evaluation metrics (success rate, AUC) are measured on the real
-    environment reward — not the shaped one.
+    environment reward - not the shaped one.
     """
     config = "none" if for_eval else reward_config
     env = make_lunarlander_env(config, gamma=GAMMA)
@@ -48,22 +59,19 @@ def build_env(reward_config, seed, log_path, for_eval=False):
     return env
 
 
-def _build_run_name(algo, reward, seed, lr=None, net_arch=None):
-    """
-    Create a unique folder name for this experiment run.
-    If custom hyperparams are provided, we encode them in the name
-    so they don't overwrite the default runs.
-    """
-    name = f"{algo}_{reward}_seed{seed}"
-    if lr is not None:
-        name += f"_lr{lr}"
-    if net_arch is not None:
-        arch_str = "-".join(str(n) for n in net_arch)
-        name += f"_net{arch_str}"
-    return name
+# Run naming is handled by config.build_run_name()
 
 
-def train(algo, reward, seed, timesteps, eval_freq, lr=None, net_arch=None):
+def train(
+    algo,
+    reward,
+    seed,
+    timesteps,
+    eval_freq,
+    lr=None,
+    net_arch=None,
+    device="auto",
+):
     """
     Run one training job. Returns the output directory path.
 
@@ -83,8 +91,10 @@ def train(algo, reward, seed, timesteps, eval_freq, lr=None, net_arch=None):
         Custom learning rate. Uses SB3 default if None.
     net_arch : list[int] or None
         Custom network architecture, e.g. [256, 256]. Uses SB3 default if None.
+    device : str
+        Device passed to Stable-Baselines3 ("auto", "cuda", or "cpu").
     """
-    run_name = _build_run_name(algo, reward, seed, lr, net_arch)
+    run_name = build_run_name(algo, reward, seed, lr, net_arch)
     run_dir = os.path.join(RESULTS_DIR, run_name)
     os.makedirs(run_dir, exist_ok=True)
 
@@ -93,7 +103,8 @@ def train(algo, reward, seed, timesteps, eval_freq, lr=None, net_arch=None):
     eval_env = build_env(reward, seed + 10_000,
                          os.path.join(run_dir, "eval_monitor"), for_eval=True)
 
-    # ── Build model kwargs ───────────────────────────────────────────
+    
+    # Build model kwargs 
     model_cls = ALGORITHMS_CLS[algo]
     model_kwargs = {
         "policy": "MlpPolicy",
@@ -101,7 +112,14 @@ def train(algo, reward, seed, timesteps, eval_freq, lr=None, net_arch=None):
         "gamma": GAMMA,
         "seed": seed,
         "verbose": 1,
-    }
+        "device": device,
+        "tensorboard_log": _tensorboard_log_dir(run_dir),
+        }
+
+    if algo in ("td3", "ddpg"):
+        n_act = train_env.action_space.shape[0]
+        model_kwargs["action_noise"] = NormalActionNoise(
+            np.zeros(n_act), 0.1 * np.ones(n_act))
 
     # Override learning rate if specified
     if lr is not None:
@@ -112,8 +130,9 @@ def train(algo, reward, seed, timesteps, eval_freq, lr=None, net_arch=None):
         model_kwargs["policy_kwargs"] = {"net_arch": list(net_arch)}
 
     model = model_cls(**model_kwargs)
+    print(f"Using device: {model.device}")
 
-    # ── Evaluation callback (tracks progress during training) ────────
+    # Evaluation callback (tracks progress during training) 
     eval_callback = EvalCallback(
         eval_env,
         best_model_save_path=run_dir,
@@ -148,10 +167,12 @@ def main():
                         help="Custom learning rate (optional, uses SB3 default)")
     parser.add_argument("--net-arch", type=int, nargs="+", default=None,
                         help="Custom network architecture, e.g. --net-arch 256 256")
+    parser.add_argument("--device", choices=["auto", "cuda", "cpu"], default="auto",
+                        help="Training device for Stable-Baselines3 (default: auto)")
     args = parser.parse_args()
 
     train(args.algo, args.reward, args.seed, args.timesteps, args.eval_freq,
-          lr=args.lr, net_arch=args.net_arch)
+          lr=args.lr, net_arch=args.net_arch, device=args.device)
 
 
 if __name__ == "__main__":

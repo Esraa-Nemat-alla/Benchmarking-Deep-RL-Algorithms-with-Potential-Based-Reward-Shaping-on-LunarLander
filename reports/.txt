@@ -1,0 +1,7 @@
+foreach ($algo in "ppo","a2c","sac","td3","ddpg") {
+    foreach ($reward in "none","distance","angle","combined","velocity") {
+        foreach ($seed in 0,1,2) {
+            .\venv\Scripts\python.exe train.py --algo $algo --reward $reward --seed $seed --timesteps 1000000
+        }
+    }
+}

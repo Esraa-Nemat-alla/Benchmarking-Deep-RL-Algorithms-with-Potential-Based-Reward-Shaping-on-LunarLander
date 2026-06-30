@@ -4,7 +4,7 @@ Web GUI for training, evaluating, and watching LunarLander PBRS experiments.
 Tabs:
   - Dashboard:           Progress, results table, learning curves, comparative chart
   - Train:               Run a single experiment with custom settings
-  - Full Grid:           Launch all 60+ benchmark runs
+  - Full Grid:           Launch all 75 default benchmark runs
   - Hyperparameter Study: Launch and view the hyperparameter sensitivity analysis
   - Watch Agent:         Replay a trained lander as a GIF
 
@@ -39,11 +39,11 @@ from evaluate import (
 
 st.set_page_config(
     page_title="LunarLander PBRS Benchmark",
-    page_icon="🚀",
+    page_icon="rocket",
     layout="wide",
 )
 
-st.title("🚀 LunarLander PBRS Benchmark")
+st.title("LunarLander PBRS Benchmark")
 st.caption(
     "Benchmarking 5 Deep RL algorithms (PPO, A2C, SAC, TD3, DDPG) "
     "with Potential-Based Reward Shaping on LunarLanderContinuous-v3."
@@ -62,15 +62,13 @@ def run_command(cmd):
     return result.returncode, output
 
 
-# ── Tabs ─────────────────────────────────────────────────────────────
+# Tabs
 tab_dashboard, tab_train, tab_grid, tab_hyperparam, tab_watch = st.tabs(
-    ["📊 Dashboard", "🏋️ Train", "🔲 Full Grid", "🔬 Hyperparameter Study", "👀 Watch Agent"]
+    ["Dashboard", "Train", "Full Grid", "Hyperparameter Study", "Watch Agent"]
 )
 
 
-# ═══════════════════════════════════════════════════════════════════════
-# TAB 1: Dashboard
-# ═══════════════════════════════════════════════════════════════════════
+# Dashboard
 with tab_dashboard:
     done, total = count_completed_runs()
     st.progress(done / total if total else 0.0, text=f"Completed runs: {done}/{total}")
@@ -87,7 +85,7 @@ with tab_dashboard:
             if df.empty:
                 st.warning("No evaluation files found yet.")
             else:
-                st.success("Updated results_summary.csv and learning curve plots.")
+                st.success("Updated reports/tables and reports/figures.")
 
     # Results summary table
     df = build_summary_table(save_csv=False)
@@ -100,7 +98,7 @@ with tab_dashboard:
             display_df[col] = display_df[col].map(lambda x: f"{x:.1f}")
         for col in ["timesteps_to_200_mean", "timesteps_to_200_std"]:
             display_df[col] = display_df[col].map(
-                lambda x: "—" if x != x else f"{x:,.0f}"
+                lambda x: "-" if x != x else f"{x:,.0f}"
             )
         st.subheader("Results Summary")
         st.dataframe(display_df, use_container_width=True, hide_index=True)
@@ -119,9 +117,7 @@ with tab_dashboard:
             st.pyplot(fig, clear_figure=True)
 
 
-# ═══════════════════════════════════════════════════════════════════════
-# TAB 2: Train a single experiment
-# ═══════════════════════════════════════════════════════════════════════
+# Train a single experiment
 with tab_train:
     st.subheader("Single Experiment")
 
@@ -142,7 +138,7 @@ with tab_train:
     )
 
     # Optional hyperparameter overrides
-    with st.expander("⚙️ Advanced: Custom Hyperparameters"):
+    with st.expander("Advanced: Custom Hyperparameters"):
         use_custom_lr = st.checkbox("Override learning rate")
         custom_lr = st.number_input(
             "Learning rate", min_value=1e-6, max_value=1e-1,
@@ -153,6 +149,11 @@ with tab_train:
             "Network layers (comma-separated)", value="64,64",
             help="E.g. '256,256' for two layers of 256 neurons.",
             disabled=not use_custom_net,
+        )
+        device = st.selectbox(
+            "Device",
+            ["auto", "cuda", "cpu"],
+            help="Use auto to let Stable-Baselines3 choose CUDA when available.",
         )
 
     st.caption(
@@ -174,6 +175,7 @@ with tab_train:
         if use_custom_net:
             net_layers = [s.strip() for s in custom_net_str.split(",")]
             cmd.extend(["--net-arch"] + net_layers)
+        cmd.extend(["--device", device])
 
         with st.spinner(f"Training {algo}_{reward}_seed{seed}..."):
             code, output = run_command(cmd)
@@ -184,19 +186,17 @@ with tab_train:
             st.error("Training failed. Check the log above.")
 
 
-# ═══════════════════════════════════════════════════════════════════════
-# TAB 3: Full Grid
-# ═══════════════════════════════════════════════════════════════════════
+# Full Grid
 with tab_grid:
     st.subheader("Full Benchmark Grid")
     grid_total = len(ALGORITHMS) * len(REWARD_CONFIGS) * len(SEEDS)
     st.write(
         f"Runs **{grid_total}** jobs sequentially: "
-        f"{len(ALGORITHMS)} algorithm(s) × {len(REWARD_CONFIGS)} rewards × {len(SEEDS)} seeds "
+        f"{len(ALGORITHMS)} algorithm(s) x {len(REWARD_CONFIGS)} rewards x {len(SEEDS)} seeds "
         f"at {DEFAULT_TIMESTEPS:,} timesteps each."
     )
     st.warning(
-        "⚠️ This can take many hours on a laptop. "
+        "This can take many hours on a laptop. "
         "Use the Train tab for quick pilots first."
     )
 
@@ -211,9 +211,7 @@ with tab_grid:
             st.error("Grid run stopped with errors.")
 
 
-# ═══════════════════════════════════════════════════════════════════════
-# TAB 4: Hyperparameter Study
-# ═══════════════════════════════════════════════════════════════════════
+# Hyperparameter Study
 with tab_hyperparam:
     st.subheader("Hyperparameter Sensitivity Study")
     st.write(
@@ -279,9 +277,7 @@ with tab_hyperparam:
         st.info("No hyperparameter study results yet. Run the study above first.")
 
 
-# ═══════════════════════════════════════════════════════════════════════
-# TAB 5: Watch Agent
-# ═══════════════════════════════════════════════════════════════════════
+# Watch Agent
 with tab_watch:
     st.subheader("Watch a Trained Agent")
     runs = list_runs()
@@ -308,9 +304,9 @@ with tab_watch:
                 else:
                     st.image(
                         gif_bytes,
-                        caption=f"{run_name} — total reward: {total_reward:.1f}",
+                        caption=f"{run_name} - total reward: {total_reward:.1f}",
                     )
                     if total_reward >= SUCCESS_THRESHOLD:
-                        st.success(f"Solved (reward ≥ {int(SUCCESS_THRESHOLD)})")
+                        st.success(f"Solved (reward >= {int(SUCCESS_THRESHOLD)})")
                     else:
                         st.info(f"Below solved threshold ({int(SUCCESS_THRESHOLD)})")
